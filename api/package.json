@@ -1,0 +1,15 @@
+{
+  "name": "copilot-api",
+  "version": "1.0.0",
+  "description": "Azure Functions API for Copilot Evolution app",
+  "scripts": {
+    "start": "func start"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.0.0",
+    "mssql": "^10.0.1"
+  },
+  "devDependencies": {
+    "@azure/functions": "^4.0.0"
+  }
+}
