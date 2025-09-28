@@ -77,7 +77,7 @@ export const FeaturesProvider = ({ children }) => {
     console.log('Loading features from database...')
     setLoading(true)
     try {
-      const response = await fetch('http://localhost:7071/api/features')
+      const response = await fetch('/api/features')
       if (response.ok) {
         const dbFeatures = await response.json()
         console.log('Database features loaded:', dbFeatures.length, 'features')
@@ -100,7 +100,7 @@ export const FeaturesProvider = ({ children }) => {
     console.log('Adding feature:', newFeature)
     setLoading(true)
     try {
-      const response = await fetch('http://localhost:7071/api/features', {
+      const response = await fetch('/api/features', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -129,7 +129,7 @@ export const FeaturesProvider = ({ children }) => {
   const updateFeature = async (id, updates) => {
     setLoading(true)
     try {
-      const response = await fetch(`http://localhost:7071/api/features/${id}`, {
+      const response = await fetch(`/api/features/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -157,7 +157,7 @@ export const FeaturesProvider = ({ children }) => {
   const deleteFeature = async (id) => {
     setLoading(true)
     try {
-      const response = await fetch(`http://localhost:7071/api/features/${id}`, {
+      const response = await fetch(`/api/features/${id}`, {
         method: 'DELETE'
       })
 
