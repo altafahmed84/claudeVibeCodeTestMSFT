@@ -1,13 +1,13 @@
-﻿const express = require('express');
-const cors = require('cors');
-const { randomUUID } = require('crypto');
-const sql = require('mssql');
+﻿const express = require('express')
+const cors = require('cors')
+const { randomUUID } = require('crypto')
+const sql = require('mssql')
 
-const app = express();
-const port = 7071;
+const app = express()
+const port = 7071
 
-app.use(cors());
-app.use(express.json());
+app.use(cors())
+app.use(express.json())
 
 const config = {
   server: 'copilot-features-sql.database.windows.net',
@@ -18,173 +18,32 @@ const config = {
     encrypt: true,
     enableArithAbort: true
   }
-};
+}
 
-const initialFeatures = [
-  {
-    id: 'seed-gpt5',
-    title: 'GPT-5',
-    date: 'August 7th',
-    icon: '🧠',
-    status: 'General availability',
-    description: 'Advanced language model capabilities with enhanced reasoning and improved safety features',
-    tldr: 'Next-gen AI model with enhanced reasoning and safety',
-    category: 'AI Models',
-    tags: ['GPT', 'AI Model', 'General AI'],
-    links: [],
-    image: null,
-    upvotes: 856,
-    comments: 142,
-    rating: 4.8
-  },
-  {
-    id: 'seed-copilot-function',
-    title: 'Copilot function =Copilot()',
-    date: 'August 18th',
-    icon: '📊',
-    status: 'Released',
-    description: 'Excel integration for AI-powered functions and data analysis',
-    tldr: 'AI-powered Excel functions for data analysis',
-    category: 'Copilot',
-    tags: ['Excel', 'Functions', 'Data Analysis'],
-    links: [],
-    image: null,
-    upvotes: 324,
-    comments: 45,
-    rating: 4.6
-  },
-  {
-    id: 'seed-copilot-studio-m365',
-    title: 'Copilot Studio Value in M365 Copilot',
-    date: 'September 1st',
-    icon: '🛠️',
-    status: 'Released',
-    description: 'Enhanced value delivery through Copilot Studio integration with Microsoft 365',
-    tldr: 'Build custom AI agents with no-code Copilot Studio',
-    category: 'Copilot',
-    tags: ['Copilot Studio', 'No-Code', 'M365'],
-    links: [],
-    image: null,
-    upvotes: 267,
-    comments: 38,
-    rating: 4.4
-  },
-  {
-    id: 'seed-copilot-chat-m365',
-    title: 'Copilot Chat in Microsoft 365 Apps',
-    date: 'September 15th',
-    icon: '💬',
-    status: 'Released',
-    description: 'AI-powered chat assistant directly integrated into Word, Excel, PowerPoint, and Outlook for seamless productivity enhancement',
-    tldr: 'AI chat across all M365 apps for productivity',
-    category: 'Copilot',
-    tags: ['AI Assistant', 'Productivity', 'M365'],
-    links: [],
-    image: null,
-    upvotes: 247,
-    comments: 23,
-    rating: 4.7
-  },
-  {
-    id: 'seed-human-agent-teams',
-    title: 'Human-agent collab in Teams',
-    date: 'September 18th',
-    icon: '🤝',
-    status: 'Released',
-    description: 'Collaborative AI agent features in Microsoft Teams for enhanced productivity',
-    tldr: 'AI agents working alongside humans in Teams',
-    category: 'Teams',
-    tags: ['Teams', 'Collaboration', 'AI Agents'],
-    links: [],
-    image: null,
-    upvotes: 189,
-    comments: 31,
-    rating: 4.3
-  },
-  {
-    id: 'seed-role-based-ai',
-    title: 'Role-based AI Solutions in M365 Copilot',
-    date: 'October 10th',
-    icon: '🧑‍💼',
-    status: 'Released',
-    description: 'Specialized AI solutions tailored for different organizational roles and workflows',
-    tldr: 'Customized AI solutions for specific job roles',
-    category: 'Copilot',
-    tags: ['Role-based', 'Customization', 'Enterprise'],
-    links: [],
-    image: null,
-    upvotes: 134,
-    comments: 19,
-    rating: 4.5
-  }
-];
+const INITIAL_COLUMNS = `
+  id NVARCHAR(36) PRIMARY KEY,
+  title NVARCHAR(255) NOT NULL,
+  date NVARCHAR(100) NOT NULL,
+  icon NVARCHAR(64) NOT NULL,
+  status NVARCHAR(50) NOT NULL,
+  description NVARCHAR(MAX) NOT NULL,
+  tldr NVARCHAR(300) NULL,
+  category NVARCHAR(100) NULL,
+  tags NVARCHAR(MAX) NULL,
+  links NVARCHAR(MAX) NULL,
+  image NVARCHAR(MAX) NULL,
+  upvotes INT NOT NULL DEFAULT 0,
+  comments INT NOT NULL DEFAULT 0,
+  rating FLOAT NULL,
+  created_at DATETIME2 DEFAULT GETDATE(),
+  updated_at DATETIME2 DEFAULT GETDATE()
+`
 
-const safeJsonParse = (value, fallback) => {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch (error) {
-    return fallback;
-  }
-};
-
-const mapDbFeature = (record) => ({
-  id: record.id,
-  title: record.title,
-  date: record.date,
-  icon: record.icon,
-  status: record.status,
-  description: record.description,
-  tldr: record.tldr ?? '',
-  category: record.category ?? '',
-  tags: safeJsonParse(record.tags, []),
-  links: safeJsonParse(record.links, []),
-  image: record.image,
-  upvotes: record.upvotes ?? 0,
-  comments: record.comments ?? 0,
-  rating: record.rating ?? 0,
-  created_at: record.created_at,
-  updated_at: record.updated_at
-});
-
-const serializeArray = (value) => {
-  if (!Array.isArray(value)) return JSON.stringify([]);
-  return JSON.stringify(value);
-};
-
-const serializeLinks = (links) => {
-  if (!Array.isArray(links)) return JSON.stringify([]);
-  const normalized = links
-    .filter((link) => link && (link.url || link.title))
-    .map((link) => ({
-      title: link.title ?? '',
-      url: link.url ?? ''
-    }));
-  return JSON.stringify(normalized);
-};
-
-async function ensureSchema(pool) {
+const ensureSchema = async (pool) => {
   await pool.request().query(`
     IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[features]') AND type in (N'U'))
     BEGIN
-      CREATE TABLE dbo.features (
-        id NVARCHAR(36) PRIMARY KEY,
-        title NVARCHAR(255) NOT NULL,
-        date NVARCHAR(100) NOT NULL,
-        icon NVARCHAR(64) NOT NULL,
-        status NVARCHAR(50) NOT NULL,
-        description NVARCHAR(MAX) NOT NULL,
-        tldr NVARCHAR(300) NULL,
-        category NVARCHAR(100) NULL,
-        tags NVARCHAR(MAX) NULL,
-        links NVARCHAR(MAX) NULL,
-        image NVARCHAR(MAX) NULL,
-        upvotes INT NOT NULL DEFAULT 0,
-        comments INT NOT NULL DEFAULT 0,
-        rating FLOAT NULL,
-        created_at DATETIME2 DEFAULT GETDATE(),
-        updated_at DATETIME2 DEFAULT GETDATE()
-      );
+      EXEC('CREATE TABLE dbo.features (${INITIAL_COLUMNS})')
     END;
 
     IF COL_LENGTH('dbo.features', 'tldr') IS NULL
@@ -203,78 +62,93 @@ async function ensureSchema(pool) {
       ALTER TABLE dbo.features ADD comments INT NOT NULL CONSTRAINT DF_features_comments DEFAULT 0;
     IF COL_LENGTH('dbo.features', 'rating') IS NULL
       ALTER TABLE dbo.features ADD rating FLOAT NULL;
-  `);
+  `)
 
   await pool.request().query(`
+    UPDATE dbo.features SET tldr = '' WHERE tldr IS NULL;
+    UPDATE dbo.features SET category = '' WHERE category IS NULL;
     UPDATE dbo.features SET tags = '[]' WHERE tags IS NULL;
     UPDATE dbo.features SET links = '[]' WHERE links IS NULL;
     UPDATE dbo.features SET upvotes = 0 WHERE upvotes IS NULL;
     UPDATE dbo.features SET comments = 0 WHERE comments IS NULL;
     UPDATE dbo.features SET rating = 0 WHERE rating IS NULL;
-  `);
+  `)
 }
 
-async function initializeDatabase() {
+const safeJsonParse = (value, fallback) => {
+  if (!value) return fallback
   try {
-    const pool = await sql.connect(config);
-    await ensureSchema(pool);
-
-    for (const feature of initialFeatures) {
-      await pool.request()
-        .input('id', sql.NVarChar, feature.id)
-        .input('title', sql.NVarChar, feature.title)
-        .input('date', sql.NVarChar, feature.date)
-        .input('icon', sql.NVarChar, feature.icon)
-        .input('status', sql.NVarChar, feature.status)
-        .input('description', sql.NVarChar, feature.description)
-        .input('tldr', sql.NVarChar, feature.tldr)
-        .input('category', sql.NVarChar, feature.category)
-        .input('tags', sql.NVarChar(sql.MAX), serializeArray(feature.tags))
-        .input('links', sql.NVarChar(sql.MAX), serializeLinks(feature.links))
-        .input('image', sql.NVarChar(sql.MAX), feature.image)
-        .input('upvotes', sql.Int, feature.upvotes ?? 0)
-        .input('comments', sql.Int, feature.comments ?? 0)
-        .input('rating', sql.Float, feature.rating ?? 0)
-        .query(`
-          IF EXISTS (SELECT 1 FROM dbo.features WHERE id = @id)
-            UPDATE dbo.features
-            SET title = @title,
-                date = @date,
-                icon = @icon,
-                status = @status,
-                description = @description,
-                tldr = @tldr,
-                category = @category,
-                tags = @tags,
-                links = @links,
-                image = @image,
-                upvotes = @upvotes,
-                comments = @comments,
-                rating = @rating,
-                updated_at = GETDATE()
-            WHERE id = @id
-          ELSE
-            INSERT INTO dbo.features (id, title, date, icon, status, description, tldr, category, tags, links, image, upvotes, comments, rating)
-            VALUES (@id, @title, @date, @icon, @status, @description, @tldr, @category, @tags, @links, @image, @upvotes, @comments, @rating);
-        `);
-    }
-
-    await pool.close();
-    console.log('Database initialized and seeded successfully');
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value
+    return Array.isArray(parsed) ? parsed : fallback
   } catch (error) {
-    console.error('Database initialization error:', error);
+    return fallback
+  }
+}
+
+const mapDbFeature = (record) => ({
+  id: record.id,
+  title: record.title,
+  date: record.date,
+  icon: record.icon,
+  status: record.status,
+  description: record.description,
+  tldr: record.tldr ?? '',
+  category: record.category ?? '',
+  tags: safeJsonParse(record.tags, []),
+  links: safeJsonParse(record.links, []),
+  image: record.image,
+  upvotes: record.upvotes ?? 0,
+  comments: record.comments ?? 0,
+  rating: record.rating ?? 0,
+  created_at: record.created_at,
+  updated_at: record.updated_at
+})
+
+const serializeTags = (tags) => {
+  if (!Array.isArray(tags)) return '[]'
+  return JSON.stringify(tags.map(tag => tag.toString()))
+}
+
+const serializeLinks = (links) => {
+  if (!Array.isArray(links)) return '[]'
+  const normalized = links
+    .filter(link => link && (link.url || link.title))
+    .map(link => ({
+      title: (link.title || '').toString(),
+      url: (link.url || '').toString()
+    }))
+  return JSON.stringify(normalized)
+}
+
+const normalizeInput = (body = {}, existing = {}) => {
+  const tags = body.tags ?? existing.tags ?? []
+  const links = body.links ?? existing.links ?? []
+  return {
+    title: body.title ?? existing.title ?? '',
+    date: body.date ?? existing.date ?? '',
+    icon: body.icon ?? existing.icon ?? '',
+    status: body.status ?? existing.status ?? '',
+    description: body.description ?? existing.description ?? '',
+    tldr: body.tldr ?? existing.tldr ?? '',
+    category: body.category ?? existing.category ?? '',
+    tags: Array.isArray(tags) ? tags : [],
+    links: Array.isArray(links) ? links : [],
+    image: body.image ?? existing.image ?? null,
+    upvotes: body.upvotes ?? existing.upvotes ?? 0,
+    comments: body.comments ?? existing.comments ?? 0,
+    rating: body.rating ?? existing.rating ?? 0
   }
 }
 
 async function withDatabase(handler, res) {
   let pool
   try {
-    await initializeDatabase()
     pool = await sql.connect(config)
+    await ensureSchema(pool)
     return await handler(pool)
   } catch (error) {
     console.error('Database operation failed:', error)
-    if (res && !res.headersSent) {
+    if (res) {
       res.status(500).json({ error: 'Database operation failed' })
     }
     throw error
@@ -292,97 +166,75 @@ async function withDatabase(handler, res) {
 app.get('/api/features', async (req, res) => {
   try {
     const result = await withDatabase((pool) => pool.request()
-      .query('SELECT * FROM dbo.features ORDER BY created_at DESC'), res);
-    res.json(result.recordset.map(mapDbFeature));
+      .query('SELECT * FROM dbo.features ORDER BY created_at DESC'), res)
+    res.json(result.recordset.map(mapDbFeature))
   } catch (error) {
-    // response already handled in withDatabase
+    // handled in withDatabase
   }
-});
+})
 
 app.post('/api/features', async (req, res) => {
   try {
-    const body = req.body || {};
-    const id = body.id || randomUUID();
-    const feature = {
-      title: body.title,
-      date: body.date,
-      icon: body.icon,
-      status: body.status,
-      description: body.description,
-      tldr: body.tldr ?? '',
-      category: body.category ?? '',
-      tags: body.tags ?? [],
-      links: body.links ?? [],
-      image: body.image ?? null,
-      upvotes: body.upvotes ?? 0,
-      comments: body.comments ?? 0,
-      rating: body.rating ?? 0
-    };
-
+    const featureInput = normalizeInput(req.body || {})
+    const id = randomUUID()
     const result = await withDatabase((pool) => pool.request()
       .input('id', sql.NVarChar, id)
-      .input('title', sql.NVarChar, feature.title)
-      .input('date', sql.NVarChar, feature.date)
-      .input('icon', sql.NVarChar, feature.icon)
-      .input('status', sql.NVarChar, feature.status)
-      .input('description', sql.NVarChar, feature.description)
-      .input('tldr', sql.NVarChar, feature.tldr)
-      .input('category', sql.NVarChar, feature.category)
-      .input('tags', sql.NVarChar(sql.MAX), serializeArray(feature.tags))
-      .input('links', sql.NVarChar(sql.MAX), serializeLinks(feature.links))
-      .input('image', sql.NVarChar(sql.MAX), feature.image)
-      .input('upvotes', sql.Int, feature.upvotes)
-      .input('comments', sql.Int, feature.comments)
-      .input('rating', sql.Float, feature.rating)
+      .input('title', sql.NVarChar, featureInput.title)
+      .input('date', sql.NVarChar, featureInput.date)
+      .input('icon', sql.NVarChar, featureInput.icon)
+      .input('status', sql.NVarChar, featureInput.status)
+      .input('description', sql.NVarChar, featureInput.description)
+      .input('tldr', sql.NVarChar, featureInput.tldr)
+      .input('category', sql.NVarChar, featureInput.category)
+      .input('tags', sql.NVarChar(sql.MAX), serializeTags(featureInput.tags))
+      .input('links', sql.NVarChar(sql.MAX), serializeLinks(featureInput.links))
+      .input('image', sql.NVarChar(sql.MAX), featureInput.image)
+      .input('upvotes', sql.Int, featureInput.upvotes)
+      .input('comments', sql.Int, featureInput.comments)
+      .input('rating', sql.Float, featureInput.rating)
       .query(`
         INSERT INTO dbo.features (id, title, date, icon, status, description, tldr, category, tags, links, image, upvotes, comments, rating)
         VALUES (@id, @title, @date, @icon, @status, @description, @tldr, @category, @tags, @links, @image, @upvotes, @comments, @rating);
         SELECT * FROM dbo.features WHERE id = @id;
-      `), res);
-
-    res.status(201).json(mapDbFeature(result.recordset[0]));
+      `), res)
+    res.status(201).json(mapDbFeature(result.recordset[0]))
   } catch (error) {
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to create feature' });
+      res.status(500).json({ error: 'Failed to create feature' })
     }
   }
-});
+})
 
 app.put('/api/features/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const body = req.body || {};
-    const feature = {
-      title: body.title,
-      date: body.date,
-      icon: body.icon,
-      status: body.status,
-      description: body.description,
-      tldr: body.tldr ?? '',
-      category: body.category ?? '',
-      tags: body.tags ?? [],
-      links: body.links ?? [],
-      image: body.image ?? null,
-      upvotes: body.upvotes ?? 0,
-      comments: body.comments ?? 0,
-      rating: body.rating ?? 0
-    };
+    const { id } = req.params
+    const existingResult = await withDatabase((pool) => pool.request()
+      .input('id', sql.NVarChar, id)
+      .query('SELECT * FROM dbo.features WHERE id = @id'), res)
+
+    if (!existingResult.recordset.length) {
+      res.status(404).json({ error: 'Feature not found' })
+      return
+    }
+
+    const existing = mapDbFeature(existingResult.recordset[0])
+    const featureInput = normalizeInput(req.body || {}, existing)
 
     const result = await withDatabase((pool) => pool.request()
       .input('id', sql.NVarChar, id)
-      .input('title', sql.NVarChar, feature.title)
-      .input('date', sql.NVarChar, feature.date)
-      .input('icon', sql.NVarChar, feature.icon)
-      .input('status', sql.NVarChar, feature.status)
-      .input('description', sql.NVarChar, feature.description)
-      .input('tldr', sql.NVarChar, feature.tldr)
-      .input('category', sql.NVarChar, feature.category)
-      .input('tags', sql.NVarChar(sql.MAX), serializeArray(feature.tags))
-      .input('links', sql.NVarChar(sql.MAX), serializeLinks(feature.links))
-      .input('image', sql.NVarChar(sql.MAX), feature.image)
-      .input('upvotes', sql.Int, feature.upvotes)
-      .input('comments', sql.Int, feature.comments)
-      .input('rating', sql.Float, feature.rating)
+      .input('title', sql.NVarChar, featureInput.title)
+      .input('date', sql.NVarChar, featureInput.date)
+      .input('icon', sql.NVarChar, featureInput.icon)
+      .input('status', sql.NVarChar, featureInput.status)
+      .input('description', sql.NVarChar, featureInput.description)
+      .input('tldr', sql.NVarChar, featureInput.tldr)
+      .input('category', sql.NVarChar, featureInput.category)
+      .input('tags', sql.NVarChar(sql.MAX), serializeTags(featureInput.tags))
+      .input('links', sql.NVarChar(sql.MAX), serializeLinks(featureInput.links))
+      .input('image', sql.NVarChar(sql.MAX), featureInput.image)
+      .input('upvotes', sql.Int, featureInput.upvotes)
+      .input('comments', sql.Int, featureInput.comments)
+      .input('rating', sql.Float, featureInput.rating)
       .query(`
         UPDATE dbo.features
         SET title = @title,
@@ -401,74 +253,41 @@ app.put('/api/features/:id', async (req, res) => {
             updated_at = GETDATE()
         WHERE id = @id;
         SELECT * FROM dbo.features WHERE id = @id;
-      `), res);
+      `), res)
 
-    if (!result.recordset.length) {
-      res.status(404).json({ error: 'Feature not found' });
-      return;
-    }
-
-    res.json(mapDbFeature(result.recordset[0]));
+    res.json(mapDbFeature(result.recordset[0]))
   } catch (error) {
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to update feature' });
+      res.status(500).json({ error: 'Failed to update feature' })
     }
   }
-});
+})
 
 app.delete('/api/features/:id', async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params
     const result = await withDatabase((pool) => pool.request()
       .input('id', sql.NVarChar, id)
-      .query('DELETE FROM dbo.features WHERE id = @id'), res);
+      .query('DELETE FROM dbo.features WHERE id = @id'), res)
 
     if (!result.rowsAffected[0]) {
-      res.status(404).json({ error: 'Feature not found' });
-      return;
+      res.status(404).json({ error: 'Feature not found' })
+      return
     }
 
-    res.json({ message: 'Feature deleted successfully' });
+    res.json({ message: 'Feature deleted successfully' })
   } catch (error) {
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to delete feature' });
+      res.status(500).json({ error: 'Failed to delete feature' })
     }
   }
-});
-
-app.post('/api/features/:id/upvote', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await withDatabase((pool) => pool.request()
-      .input('id', sql.NVarChar, id)
-      .query(`
-        UPDATE dbo.features
-        SET upvotes = ISNULL(upvotes, 0) + 1,
-            updated_at = GETDATE()
-        WHERE id = @id;
-        SELECT * FROM dbo.features WHERE id = @id;
-      `), res);
-
-    if (!result.recordset.length) {
-      res.status(404).json({ error: 'Feature not found' });
-      return;
-    }
-
-    res.json(mapDbFeature(result.recordset[0]));
-  } catch (error) {
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to upvote feature' });
-    }
-  }
-});
-
-app.options('/api/*', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.sendStatus(200);
-});
+})
 
 app.listen(port, () => {
-  console.log(`Local API server running on http://localhost:${port}`);
-});
+  console.log(`Local API server running on http://localhost:${port}`)
+  console.log('Available endpoints:')
+  console.log('  GET    /api/features')
+  console.log('  POST   /api/features')
+  console.log('  PUT    /api/features/:id')
+  console.log('  DELETE /api/features/:id')
+})
