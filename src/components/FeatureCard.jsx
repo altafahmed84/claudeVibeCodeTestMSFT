@@ -65,6 +65,22 @@ const FeatureCard = ({ feature, className = '' }) => {
         {feature.description}
       </p>
 
+      {Array.isArray(feature.tags) && feature.tags.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {feature.tags.slice(0, 3).map((tag) => (
+            <span
+              key={tag}
+              className="px-2 py-1 text-xs rounded-full bg-primary-surfaceElevated border border-primary-backgroundSecondary text-text-secondary"
+            >
+              #{tag}
+            </span>
+          ))}
+          {feature.tags.length > 3 && (
+            <span className="text-xs text-text-muted">+{feature.tags.length - 3}</span>
+          )}
+        </div>
+      )}
+
       {/* Hover Indicator */}
       <div className="mt-4 text-text-accent text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         Click to view details →

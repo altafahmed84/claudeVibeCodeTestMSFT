@@ -1,6 +1,6 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useFeatures } from '../context/FeaturesContext'
-import { X, Edit3, Save, Calendar, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, Edit3, Save, Calendar, ChevronDown, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
 
 const FeatureDetailsPanel = () => {
   const { selectedFeature, setSelectedFeature, updateFeature } = useFeatures()
@@ -401,6 +401,47 @@ const FeatureDetailsPanel = () => {
               </p>
             )}
           </div>
+
+          {!isEditing && Array.isArray(selectedFeature.tags) && selectedFeature.tags.length > 0 && (
+            <div className="mb-6">
+              <h4 className="font-medium text-text-primary mb-2">Tags</h4>
+              <div className="flex flex-wrap gap-2">
+                {selectedFeature.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-3 py-1 text-xs rounded-full bg-primary-background text-text-secondary border border-primary-surfaceElevated"
+                  >
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!isEditing && Array.isArray(selectedFeature.links) && selectedFeature.links.length > 0 && (
+            <div className="mb-6">
+              <h4 className="font-medium text-text-primary mb-2">Related Links</h4>
+              <div className="space-y-2">
+                {selectedFeature.links.map((link, index) => (
+                  <a
+                    key={`${link.url}-${index}`}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between bg-primary-surfaceElevated/40 border border-primary-surfaceElevated rounded-lg px-4 py-3 hover:border-text-accent hover:text-text-accent transition-colors"
+                  >
+                    <div className="min-w-0 pr-4">
+                      <div className="text-sm font-medium text-text-primary">{link.title || 'View resource'}</div>
+                      <div className="text-xs text-text-muted truncate">
+                        {link.url}
+                      </div>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-text-muted flex-shrink-0" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {!isEditing && (
             <div className="space-y-4">
