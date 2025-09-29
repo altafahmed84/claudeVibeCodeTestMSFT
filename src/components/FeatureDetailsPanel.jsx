@@ -44,6 +44,19 @@ const FeatureDetailsPanel = () => {
     setSelectedFeature(refreshed || null)
   }
 
+  if (showEditor) {
+    return (
+      <div className="fixed right-0 top-0 bottom-0 w-full md:w-[420px] lg:w-[480px] bg-primary-surface border-l border-primary-surfaceElevated shadow-2xl z-40 overflow-y-auto">
+        <AdminForm
+          feature={selectedFeature}
+          mode="edit"
+          variant="inline"
+          onClose={handleEditorClose}
+        />
+      </div>
+    )
+  }
+
   return (
     <>
       <div className="fixed right-0 top-0 bottom-0 w-full md:w-[420px] lg:w-[480px] bg-primary-surface border-l border-primary-surfaceElevated shadow-2xl z-40 overflow-y-auto">
