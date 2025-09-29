@@ -1,4 +1,4 @@
-name: Azure Static Web Apps CI/CD - Standard
+name: Azure Static Web Apps CI/CD
 
 on:
   push:
@@ -18,6 +18,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
+          lfs: false
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -28,7 +29,6 @@ jobs:
           app_location: "/"
           api_location: "api"
           output_location: "dist"
-          skip_app_build: true
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
