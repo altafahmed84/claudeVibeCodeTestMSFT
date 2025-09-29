@@ -32,19 +32,19 @@ const Timeline = () => {
   const formatDate = (dateString) => {
     if (!dateString) return ''
 
-    // Handle "August 7th" format and convert to "Aug 7, 2025"
     const monthMap = {
       'january': 'Jan', 'february': 'Feb', 'march': 'Mar', 'april': 'Apr',
       'may': 'May', 'june': 'Jun', 'july': 'Jul', 'august': 'Aug',
       'september': 'Sep', 'october': 'Oct', 'november': 'Nov', 'december': 'Dec'
     }
 
-    const match = dateString.match(/^(\w+)\s+(\d+)/)
+    const cleaned = dateString.replace(/(\d+)(st|nd|rd|th)/gi, '$1')
+    const match = cleaned.match(/^(\w+)\s+(\d{1,2})(?:,?\s*(\d{4}))?/)
     if (match) {
-      const [, monthName, day] = match
+      const [, monthName, day, year] = match
       const shortMonth = monthMap[monthName.toLowerCase()]
       if (shortMonth) {
-        return `${shortMonth} ${day}, 2025`
+        return `${shortMonth} ${day}${year ? `, ${year}` : ''}`
       }
     }
 

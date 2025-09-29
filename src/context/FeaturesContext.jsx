@@ -111,6 +111,32 @@ const initialFeatures = [
   }
 ]
 
+const parseJsonArray = (value, fallback = []) => {
+  if (Array.isArray(value)) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parsed : fallback
+    } catch (error) {
+      return fallback
+    }
+  }
+
+  return fallback
+}
+
+const normalizeFeature = (feature) => ({
+  ...feature,
+  tags: parseJsonArray(feature.tags),
+  links: parseJsonArray(feature.links),
+  upvotes: Number.isFinite(feature.upvotes) ? feature.upvotes : Number(feature.upvotes || 0),
+  comments: Number.isFinite(feature.comments) ? feature.comments : Number(feature.comments || 0),
+  rating: Number.isFinite(feature.rating) ? feature.rating : Number(feature.rating || 0)
+})
+
 export const FeaturesProvider = ({ children }) => {
   const [features, setFeatures] = useState([])
   const [selectedFeature, setSelectedFeature] = useState(null)
@@ -127,14 +153,12 @@ export const FeaturesProvider = ({ children }) => {
 
   // Helper function to parse date string to Date object for sorting
   const parseFeatureDate = (dateString) => {
-    // Handle different date formats
-    if (!dateString) return new Date(0) // Default to earliest date if no date
+    if (!dateString) return new Date(0)
 
-    // Try to parse "Month Day" format (e.g., "August 7th", "September 15th")
-    const monthDayMatch = dateString.match(/^(\w+)\s+(\d+)/)
+    const cleaned = dateString.replace(/(\d+)(st|nd|rd|th)/gi, '$1')
+    const monthDayMatch = cleaned.match(/^(\w+)\s+(\d{1,2})(?:,\s*(\d{4}))?/)
     if (monthDayMatch) {
-      const [, monthName, day] = monthDayMatch
-      const currentYear = new Date().getFullYear()
+      const [, monthName, day, year] = monthDayMatch
       const monthMap = {
         'january': 0, 'february': 1, 'march': 2, 'april': 3,
         'may': 4, 'june': 5, 'july': 6, 'august': 7,
@@ -142,11 +166,16 @@ export const FeaturesProvider = ({ children }) => {
       }
       const monthIndex = monthMap[monthName.toLowerCase()]
       if (monthIndex !== undefined) {
-        return new Date(currentYear, monthIndex, parseInt(day))
+        const yearValue = year ? parseInt(year, 10) : new Date().getFullYear()
+        return new Date(yearValue, monthIndex, parseInt(day, 10))
       }
     }
 
-    // Fallback to Date parsing
+    const parsed = new Date(cleaned)
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed
+    }
+
     return new Date(dateString)
   }
 
@@ -303,16 +332,16 @@ export const FeaturesProvider = ({ children }) => {
       if (response.ok) {
         const dbFeatures = await response.json()
         console.log('Database features loaded:', dbFeatures.length, 'features')
-        setFeatures(dbFeatures)
+        setFeatures(dbFeatures.map(normalizeFeature))
       } else {
         console.error('Failed to load features from database:', response.status)
         // Fallback to hardcoded features if database fails
-        setFeatures(initialFeatures)
+        setFeatures(initialFeatures.map(normalizeFeature))
       }
     } catch (error) {
       console.error('Error loading features from database:', error)
       // Fallback to hardcoded features if database fails
-      setFeatures(initialFeatures)
+      setFeatures(initialFeatures.map(normalizeFeature))
     } finally {
       setLoading(false)
     }
@@ -333,7 +362,7 @@ export const FeaturesProvider = ({ children }) => {
       if (response.ok) {
         const feature = await response.json()
         console.log('Successfully added feature to database:', feature)
-        setFeatures(prev => [feature, ...prev])
+        setFeatures(prev => [normalizeFeature(feature), ...prev])
         return feature
       } else {
         const errorText = await response.text()
@@ -353,7 +382,7 @@ export const FeaturesProvider = ({ children }) => {
     try {
       const existingFeature = features.find(feature => feature.id === id) || {}
       const payload = { ...existingFeature, ...updates }
-      const { id: _, created_at, updated_at, ...body } = payload
+      const { id: _omit, created_at, updated_at, ...body } = payload
 
       const response = await fetch(`/api/features/${id}`, {
         method: 'PUT',
@@ -365,8 +394,9 @@ export const FeaturesProvider = ({ children }) => {
 
       if (response.ok) {
         const updatedFeature = await response.json()
-        setFeatures(prev => prev.map(f => f.id === id ? updatedFeature : f))
-        return updatedFeature
+        const normalizedFeature = normalizeFeature(updatedFeature)
+        setFeatures(prev => prev.map(f => (f.id === id ? normalizedFeature : f)))
+        return normalizedFeature
       } else {
         const errorText = await response.text()
         console.error('Failed to update feature in database:', response.status, errorText)

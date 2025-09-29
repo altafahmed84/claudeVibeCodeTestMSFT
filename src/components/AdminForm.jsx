@@ -44,11 +44,7 @@ const AdminForm = ({ feature = null, onClose, mode = 'create' }) => {
     if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) {
       return ''
     }
-    const options = { month: 'long', day: 'numeric' }
-    if (dateObj.getFullYear() !== new Date().getFullYear()) {
-      options.year = 'numeric'
-    }
-    return dateObj.toLocaleDateString('en-US', options)
+    return dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   }
 
   const parseDateString = (value) => {
@@ -514,7 +510,7 @@ const AdminForm = ({ feature = null, onClose, mode = 'create' }) => {
               >
                 {icons.map(icon => (
                   <option key={icon} value={icon} className="bg-primary-surface text-text-primary">
-                    {icon} {icon}
+                    {icon}
                   </option>
                 ))}
               </select>
