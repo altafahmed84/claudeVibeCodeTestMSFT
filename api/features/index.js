@@ -1,356 +1,451 @@
-﻿const sql = require('mssql')
-const { randomUUID } = require('crypto')
+const sql = require('mssql');
 
+// Database configuration
 const config = {
-  server: 'copilot-features-sql.database.windows.net',
-  database: 'copilot-features',
-  user: 'copilotadmin',
-  password: 'CopilotApp2024!',
-  options: {
-    encrypt: true,
-    enableArithAbort: true,
-    charset: 'utf8'
-  },
-  pool: {
-    max: 10,
-    min: 0,
-    idleTimeoutMillis: 30000
-  }
-}
+    server: 'copilot-features-sql.database.windows.net',
+    database: 'copilot-features',
+    user: 'copilotadmin',
+    password: 'CopilotApp2024!',
+    options: {
+        encrypt: true,
+        enableArithAbort: true
+    }
+};
 
-const INITIAL_COLUMNS = `
-  id NVARCHAR(36) PRIMARY KEY,
-  title NVARCHAR(255) NOT NULL,
-  date NVARCHAR(100) NOT NULL,
-  icon NVARCHAR(64) NOT NULL,
-  status NVARCHAR(50) NOT NULL,
-  description NVARCHAR(MAX) NOT NULL,
-  tldr NVARCHAR(300) NULL,
-  category NVARCHAR(100) NULL,
-  tags NVARCHAR(MAX) NULL,
-  links NVARCHAR(MAX) NULL,
-  image NVARCHAR(MAX) NULL,
-  upvotes INT NOT NULL DEFAULT 0,
-  comments INT NOT NULL DEFAULT 0,
-  rating FLOAT NULL,
-  is_starred BIT NOT NULL DEFAULT 0,
-  created_at DATETIME2 DEFAULT GETDATE(),
-  updated_at DATETIME2 DEFAULT GETDATE()
-`
+// Hardcoded features to seed the database
+const initialFeatures = [
+    {
+        id: 'seed-gpt5',
+        title: "GPT-5",
+        date: "August 7th",
+        icon: "🧠",
+        status: "General availability",
+        description: "Advanced language model capabilities with enhanced reasoning and improved safety features",
+        tldr: "Next-gen AI model with enhanced reasoning and safety",
+        category: "AI Models",
+        tags: JSON.stringify(["GPT", "AI Model", "General AI"]),
+        upvotes: 856,
+        comments: 142,
+        rating: 4.8,
+        is_starred: 0
+    },
+    {
+        id: 'seed-copilot-function',
+        title: "Copilot function =Copilot()",
+        date: "August 18th",
+        icon: "📊",
+        status: "Released",
+        description: "Excel integration for AI-powered functions and data analysis",
+        tldr: "AI-powered Excel functions for data analysis",
+        category: "Copilot",
+        tags: JSON.stringify(["Excel", "Functions", "Data Analysis"]),
+        upvotes: 324,
+        comments: 45,
+        rating: 4.6,
+        is_starred: 0
+    },
+    {
+        id: 'seed-copilot-studio-m365',
+        title: "Copilot Studio Value in M365 Copilot",
+        date: "September 1st",
+        icon: "🛠️",
+        status: "Released",
+        description: "Enhanced value delivery through Copilot Studio integration with Microsoft 365",
+        tldr: "Build custom AI agents with no-code Copilot Studio",
+        category: "Copilot",
+        tags: JSON.stringify(["Copilot Studio", "No-Code", "M365"]),
+        upvotes: 267,
+        comments: 38,
+        rating: 4.4,
+        is_starred: 0
+    },
+    {
+        id: 'seed-copilot-chat-m365',
+        title: "Copilot Chat in Microsoft 365 Apps",
+        date: "September 15th",
+        icon: "💬",
+        status: "Released",
+        description: "AI-powered chat assistant directly integrated into Word, Excel, PowerPoint, and Outlook for seamless productivity enhancement",
+        tldr: "AI chat across all M365 apps for productivity",
+        category: "Copilot",
+        tags: JSON.stringify(["AI Assistant", "Productivity", "M365"]),
+        upvotes: 247,
+        comments: 23,
+        rating: 4.7,
+        is_starred: 0
+    },
+    {
+        id: 'seed-human-agent-teams',
+        title: "Human-agent collab in Teams",
+        date: "September 18th",
+        icon: "🤝",
+        status: "Released",
+        description: "Collaborative AI agent features in Microsoft Teams for enhanced productivity",
+        tldr: "AI agents working alongside humans in Teams",
+        category: "Teams",
+        tags: JSON.stringify(["Teams", "Collaboration", "AI Agents"]),
+        upvotes: 189,
+        comments: 31,
+        rating: 4.3,
+        is_starred: 0
+    },
+    {
+        id: 'seed-role-based-ai',
+        title: "Role-based AI Solutions in M365 Copilot",
+        date: "October 10th",
+        icon: "🧑‍💼",
+        status: "Released",
+        description: "Specialized AI solutions tailored for different organizational roles and workflows",
+        tldr: "Customized AI solutions for specific job roles",
+        category: "Copilot",
+        tags: JSON.stringify(["Role-based", "Customization", "Enterprise"]),
+        upvotes: 134,
+        comments: 19,
+        rating: 4.5,
+        is_starred: 0
+    }
+];
 
-const ensureSchema = async (pool) => {
-  await pool.request().query(`
-    IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[features]') AND type in (N'U'))
-    BEGIN
-      EXEC('CREATE TABLE dbo.features (${INITIAL_COLUMNS})')
-    END;
+// Initialize database table and seed with hardcoded features
+async function initializeDatabase() {
+    try {
+        const pool = await sql.connect(config);
 
-    IF COL_LENGTH('dbo.features', 'tldr') IS NULL
-      ALTER TABLE dbo.features ADD tldr NVARCHAR(300) NULL;
-    IF COL_LENGTH('dbo.features', 'category') IS NULL
-      ALTER TABLE dbo.features ADD category NVARCHAR(100) NULL;
-    IF COL_LENGTH('dbo.features', 'tags') IS NULL
-      ALTER TABLE dbo.features ADD tags NVARCHAR(MAX) NULL;
-    IF COL_LENGTH('dbo.features', 'links') IS NULL
-      ALTER TABLE dbo.features ADD links NVARCHAR(MAX) NULL;
-    IF COL_LENGTH('dbo.features', 'image') IS NULL
-      ALTER TABLE dbo.features ADD image NVARCHAR(MAX) NULL;
-    IF COL_LENGTH('dbo.features', 'upvotes') IS NULL
-      ALTER TABLE dbo.features ADD upvotes INT NOT NULL CONSTRAINT DF_features_upvotes DEFAULT 0;
-    IF COL_LENGTH('dbo.features', 'comments') IS NULL
-      ALTER TABLE dbo.features ADD comments INT NOT NULL CONSTRAINT DF_features_comments DEFAULT 0;
-    IF COL_LENGTH('dbo.features', 'rating') IS NULL
-      ALTER TABLE dbo.features ADD rating FLOAT NULL;
-    IF COL_LENGTH('dbo.features', 'is_starred') IS NULL
-      ALTER TABLE dbo.features ADD is_starred BIT NOT NULL CONSTRAINT DF_features_is_starred DEFAULT 0;
-  `)
+        // Create table if it doesn't exist
+        await pool.request().query(`
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='features' AND xtype='U')
+            CREATE TABLE features (
+                id NVARCHAR(36) PRIMARY KEY,
+                title NVARCHAR(255) NOT NULL,
+                date NVARCHAR(100) NOT NULL,
+                icon NVARCHAR(10) NOT NULL,
+                status NVARCHAR(50) NOT NULL,
+                description NVARCHAR(MAX) NOT NULL,
+                tldr NVARCHAR(300) NULL,
+                category NVARCHAR(100) NULL,
+                tags NVARCHAR(MAX) NULL,
+                links NVARCHAR(MAX) NULL,
+                image NVARCHAR(MAX) NULL,
+                upvotes INT NOT NULL DEFAULT 0,
+                comments INT NOT NULL DEFAULT 0,
+                rating FLOAT NULL,
+                is_starred BIT NOT NULL DEFAULT 0,
+                created_at DATETIME2 DEFAULT GETDATE(),
+                updated_at DATETIME2 DEFAULT GETDATE()
+            )
+        `);
 
-  await pool.request().query(`
-    UPDATE dbo.features SET tldr = '' WHERE tldr IS NULL;
-    UPDATE dbo.features SET category = '' WHERE category IS NULL;
-    UPDATE dbo.features SET tags = '[]' WHERE tags IS NULL;
-    UPDATE dbo.features SET links = '[]' WHERE links IS NULL;
-    UPDATE dbo.features SET upvotes = 0 WHERE upvotes IS NULL;
-    UPDATE dbo.features SET comments = 0 WHERE comments IS NULL;
-    UPDATE dbo.features SET rating = 0 WHERE rating IS NULL;
-    UPDATE dbo.features SET is_starred = 0 WHERE is_starred IS NULL;
-  `)
-}
+        // Seed database with hardcoded features (update if they exist, insert if they don't)
+        for (const feature of initialFeatures) {
+            await pool.request()
+                .input('id', sql.NVarChar, feature.id)
+                .input('title', sql.NVarChar, feature.title)
+                .input('date', sql.NVarChar, feature.date)
+                .input('icon', sql.NVarChar, feature.icon)
+                .input('status', sql.NVarChar, feature.status)
+                .input('description', sql.NVarChar, feature.description)
+                .input('tldr', sql.NVarChar, feature.tldr)
+                .input('category', sql.NVarChar, feature.category)
+                .input('tags', sql.NVarChar, feature.tags)
+                .input('upvotes', sql.Int, feature.upvotes)
+                .input('comments', sql.Int, feature.comments)
+                .input('rating', sql.Float, feature.rating)
+                .input('is_starred', sql.Bit, feature.is_starred)
+                .query(`
+                    IF EXISTS (SELECT 1 FROM features WHERE id = @id)
+                        UPDATE features
+                        SET title = @title, date = @date, icon = @icon,
+                            status = @status, description = @description, tldr = @tldr,
+                            category = @category, tags = @tags, upvotes = @upvotes,
+                            comments = @comments, rating = @rating, is_starred = @is_starred,
+                            updated_at = GETDATE()
+                        WHERE id = @id
+                    ELSE
+                        INSERT INTO features (id, title, date, icon, status, description, tldr, category, tags, upvotes, comments, rating, is_starred)
+                        VALUES (@id, @title, @date, @icon, @status, @description, @tldr, @category, @tags, @upvotes, @comments, @rating, @is_starred)
+                `);
+        }
 
-const safeJsonParse = (value, fallback) => {
-  if (!value) return fallback
-  try {
-    const parsed = typeof value === 'string' ? JSON.parse(value) : value
-    return Array.isArray(parsed) ? parsed : fallback
-  } catch (error) {
-    return fallback
-  }
-}
-
-const mapDbFeature = (record) => ({
-  id: record.id,
-  title: record.title,
-  date: record.date,
-  icon: record.icon,
-  status: record.status,
-  description: record.description,
-  tldr: record.tldr ?? '',
-  category: record.category ?? '',
-  tags: safeJsonParse(record.tags, []),
-  links: safeJsonParse(record.links, []),
-  image: record.image,
-  upvotes: record.upvotes ?? 0,
-  comments: record.comments ?? 0,
-  rating: record.rating ?? 0,
-  isStarred: Boolean(record.is_starred),
-  created_at: record.created_at,
-  updated_at: record.updated_at
-})
-
-const serializeTags = (tags) => {
-  if (!Array.isArray(tags)) return '[]'
-  return JSON.stringify(tags.map(tag => tag.toString()))
-}
-
-const serializeLinks = (links) => {
-  if (!Array.isArray(links)) return '[]'
-  const normalized = links
-    .filter(link => link && (link.url || link.title))
-    .map(link => ({
-      title: (link.title || '').toString(),
-      url: (link.url || '').toString()
-    }))
-  return JSON.stringify(normalized)
-}
-
-const normalizeInput = (body = {}, existing = {}) => {
-  const tags = body.tags ?? existing.tags ?? []
-  const links = body.links ?? existing.links ?? []
-  return {
-    title: body.title ?? existing.title ?? '',
-    date: body.date ?? existing.date ?? '',
-    icon: body.icon ?? existing.icon ?? '',
-    status: body.status ?? existing.status ?? '',
-    description: body.description ?? existing.description ?? '',
-    tldr: body.tldr ?? existing.tldr ?? '',
-    category: body.category ?? existing.category ?? '',
-    tags: Array.isArray(tags) ? tags : [],
-    links: Array.isArray(links) ? links : [],
-    image: body.image ?? existing.image ?? null,
-    upvotes: body.upvotes ?? existing.upvotes ?? 0,
-    comments: body.comments ?? existing.comments ?? 0,
-    rating: body.rating ?? existing.rating ?? 0,
-    isStarred: body.isStarred ?? existing.isStarred ?? false
-  }
-}
-
-const applyCors = (context) => {
-  context.res = context.res || {}
-  context.res.headers = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
-  }
+        console.log('Database initialized and seeded successfully');
+        await pool.close();
+    } catch (err) {
+        console.error('Database initialization error:', err);
+    }
 }
 
 module.exports = async function (context, req) {
-  applyCors(context)
+    context.log('Features API function processed a request.');
 
-  const method = (req.method || 'GET').toUpperCase()
-  const id = req.params.id
-  const action = req.params.action
+    // Set CORS headers
+    context.res = {
+        headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+        }
+    };
 
-  if (method === 'OPTIONS') {
-    context.res.status = 200
-    context.res.body = ''
-    return
-  }
+    const method = req.method.toUpperCase();
+    const id = req.params.id;
+    const action = req.params.action;
 
-  let pool
-  try {
-    pool = await sql.connect(config)
-    await ensureSchema(pool)
+    try {
+        // Handle OPTIONS requests for CORS
+        if (method === 'OPTIONS') {
+            context.res.status = 200;
+            context.res.body = '';
+            return;
+        }
 
-    if (method === 'GET' && !id) {
-      const result = await pool.request().query('SELECT * FROM dbo.features ORDER BY created_at DESC')
-      context.res.status = 200
-      context.res.body = result.recordset.map(mapDbFeature)
-      return
+        // Initialize database
+        await initializeDatabase();
+
+        if (method === 'GET' && !id) {
+            // Get all features
+            const pool = await sql.connect(config);
+            const result = await pool.request()
+                .query('SELECT * FROM features ORDER BY created_at DESC');
+            await pool.close();
+
+            // Transform database results to match frontend expectations
+            const features = result.recordset.map(record => ({
+                id: record.id,
+                title: record.title,
+                date: record.date,
+                icon: record.icon,
+                status: record.status,
+                description: record.description,
+                tldr: record.tldr || '',
+                category: record.category || '',
+                tags: record.tags ? JSON.parse(record.tags) : [],
+                links: record.links ? JSON.parse(record.links) : [],
+                image: record.image,
+                upvotes: record.upvotes || 0,
+                comments: record.comments || 0,
+                rating: record.rating || 0,
+                isStarred: Boolean(record.is_starred),
+                created_at: record.created_at,
+                updated_at: record.updated_at
+            }));
+
+            context.res.status = 200;
+            context.res.body = features;
+
+        } else if (method === 'POST' && !id) {
+            // Create new feature
+            const { title, date, icon, status, description, tldr, category, tags, links, image, upvotes, comments, rating, isStarred } = req.body;
+            const newId = require('crypto').randomUUID();
+
+            const pool = await sql.connect(config);
+            const result = await pool.request()
+                .input('id', sql.NVarChar, newId)
+                .input('title', sql.NVarChar, title)
+                .input('date', sql.NVarChar, date)
+                .input('icon', sql.NVarChar, icon)
+                .input('status', sql.NVarChar, status)
+                .input('description', sql.NVarChar, description)
+                .input('tldr', sql.NVarChar, tldr || '')
+                .input('category', sql.NVarChar, category || '')
+                .input('tags', sql.NVarChar, JSON.stringify(tags || []))
+                .input('links', sql.NVarChar, JSON.stringify(links || []))
+                .input('image', sql.NVarChar, image)
+                .input('upvotes', sql.Int, upvotes || 0)
+                .input('comments', sql.Int, comments || 0)
+                .input('rating', sql.Float, rating || 0)
+                .input('is_starred', sql.Bit, isStarred ? 1 : 0)
+                .query(`
+                    INSERT INTO features (id, title, date, icon, status, description, tldr, category, tags, links, image, upvotes, comments, rating, is_starred)
+                    VALUES (@id, @title, @date, @icon, @status, @description, @tldr, @category, @tags, @links, @image, @upvotes, @comments, @rating, @is_starred);
+                    SELECT * FROM features WHERE id = @id;
+                `);
+            await pool.close();
+
+            const newFeature = {
+                id: result.recordset[0].id,
+                title: result.recordset[0].title,
+                date: result.recordset[0].date,
+                icon: result.recordset[0].icon,
+                status: result.recordset[0].status,
+                description: result.recordset[0].description,
+                tldr: result.recordset[0].tldr || '',
+                category: result.recordset[0].category || '',
+                tags: result.recordset[0].tags ? JSON.parse(result.recordset[0].tags) : [],
+                links: result.recordset[0].links ? JSON.parse(result.recordset[0].links) : [],
+                image: result.recordset[0].image,
+                upvotes: result.recordset[0].upvotes || 0,
+                comments: result.recordset[0].comments || 0,
+                rating: result.recordset[0].rating || 0,
+                isStarred: Boolean(result.recordset[0].is_starred),
+                created_at: result.recordset[0].created_at,
+                updated_at: result.recordset[0].updated_at
+            };
+
+            context.res.status = 201;
+            context.res.body = newFeature;
+
+        } else if (method === 'PUT' && id && action === 'upvote') {
+            // Handle upvote
+            const pool = await sql.connect(config);
+            const result = await pool.request()
+                .input('id', sql.NVarChar, id)
+                .query(`
+                    UPDATE features SET upvotes = upvotes + 1, updated_at = GETDATE() WHERE id = @id;
+                    SELECT * FROM features WHERE id = @id;
+                `);
+            await pool.close();
+
+            if (result.recordset.length === 0) {
+                context.res.status = 404;
+                context.res.body = { error: 'Feature not found' };
+            } else {
+                const updatedFeature = {
+                    id: result.recordset[0].id,
+                    title: result.recordset[0].title,
+                    date: result.recordset[0].date,
+                    icon: result.recordset[0].icon,
+                    status: result.recordset[0].status,
+                    description: result.recordset[0].description,
+                    tldr: result.recordset[0].tldr || '',
+                    category: result.recordset[0].category || '',
+                    tags: result.recordset[0].tags ? JSON.parse(result.recordset[0].tags) : [],
+                    links: result.recordset[0].links ? JSON.parse(result.recordset[0].links) : [],
+                    image: result.recordset[0].image,
+                    upvotes: result.recordset[0].upvotes || 0,
+                    comments: result.recordset[0].comments || 0,
+                    rating: result.recordset[0].rating || 0,
+                    isStarred: Boolean(result.recordset[0].is_starred),
+                    created_at: result.recordset[0].created_at,
+                    updated_at: result.recordset[0].updated_at
+                };
+                context.res.status = 200;
+                context.res.body = updatedFeature;
+            }
+
+        } else if (method === 'PUT' && id && action === 'star') {
+            // Handle star toggle
+            const { isStarred } = req.body;
+            const pool = await sql.connect(config);
+            const result = await pool.request()
+                .input('id', sql.NVarChar, id)
+                .input('is_starred', sql.Bit, isStarred ? 1 : 0)
+                .query(`
+                    UPDATE features SET is_starred = @is_starred, updated_at = GETDATE() WHERE id = @id;
+                    SELECT * FROM features WHERE id = @id;
+                `);
+            await pool.close();
+
+            if (result.recordset.length === 0) {
+                context.res.status = 404;
+                context.res.body = { error: 'Feature not found' };
+            } else {
+                const updatedFeature = {
+                    id: result.recordset[0].id,
+                    title: result.recordset[0].title,
+                    date: result.recordset[0].date,
+                    icon: result.recordset[0].icon,
+                    status: result.recordset[0].status,
+                    description: result.recordset[0].description,
+                    tldr: result.recordset[0].tldr || '',
+                    category: result.recordset[0].category || '',
+                    tags: result.recordset[0].tags ? JSON.parse(result.recordset[0].tags) : [],
+                    links: result.recordset[0].links ? JSON.parse(result.recordset[0].links) : [],
+                    image: result.recordset[0].image,
+                    upvotes: result.recordset[0].upvotes || 0,
+                    comments: result.recordset[0].comments || 0,
+                    rating: result.recordset[0].rating || 0,
+                    isStarred: Boolean(result.recordset[0].is_starred),
+                    created_at: result.recordset[0].created_at,
+                    updated_at: result.recordset[0].updated_at
+                };
+                context.res.status = 200;
+                context.res.body = updatedFeature;
+            }
+
+        } else if (method === 'PUT' && id) {
+            // Update feature
+            const { title, date, icon, status, description, tldr, category, tags, links, image, upvotes, comments, rating, isStarred } = req.body;
+
+            const pool = await sql.connect(config);
+            const result = await pool.request()
+                .input('id', sql.NVarChar, id)
+                .input('title', sql.NVarChar, title)
+                .input('date', sql.NVarChar, date)
+                .input('icon', sql.NVarChar, icon)
+                .input('status', sql.NVarChar, status)
+                .input('description', sql.NVarChar, description)
+                .input('tldr', sql.NVarChar, tldr || '')
+                .input('category', sql.NVarChar, category || '')
+                .input('tags', sql.NVarChar, JSON.stringify(tags || []))
+                .input('links', sql.NVarChar, JSON.stringify(links || []))
+                .input('image', sql.NVarChar, image)
+                .input('upvotes', sql.Int, upvotes || 0)
+                .input('comments', sql.Int, comments || 0)
+                .input('rating', sql.Float, rating || 0)
+                .input('is_starred', sql.Bit, isStarred ? 1 : 0)
+                .query(`
+                    UPDATE features
+                    SET title = @title, date = @date, icon = @icon, status = @status,
+                        description = @description, tldr = @tldr, category = @category,
+                        tags = @tags, links = @links, image = @image, upvotes = @upvotes,
+                        comments = @comments, rating = @rating, is_starred = @is_starred,
+                        updated_at = GETDATE()
+                    WHERE id = @id;
+                    SELECT * FROM features WHERE id = @id;
+                `);
+            await pool.close();
+
+            if (result.recordset.length === 0) {
+                context.res.status = 404;
+                context.res.body = { error: 'Feature not found' };
+            } else {
+                const updatedFeature = {
+                    id: result.recordset[0].id,
+                    title: result.recordset[0].title,
+                    date: result.recordset[0].date,
+                    icon: result.recordset[0].icon,
+                    status: result.recordset[0].status,
+                    description: result.recordset[0].description,
+                    tldr: result.recordset[0].tldr || '',
+                    category: result.recordset[0].category || '',
+                    tags: result.recordset[0].tags ? JSON.parse(result.recordset[0].tags) : [],
+                    links: result.recordset[0].links ? JSON.parse(result.recordset[0].links) : [],
+                    image: result.recordset[0].image,
+                    upvotes: result.recordset[0].upvotes || 0,
+                    comments: result.recordset[0].comments || 0,
+                    rating: result.recordset[0].rating || 0,
+                    isStarred: Boolean(result.recordset[0].is_starred),
+                    created_at: result.recordset[0].created_at,
+                    updated_at: result.recordset[0].updated_at
+                };
+                context.res.status = 200;
+                context.res.body = updatedFeature;
+            }
+
+        } else if (method === 'DELETE' && id) {
+            // Delete feature
+            const pool = await sql.connect(config);
+            const result = await pool.request()
+                .input('id', sql.NVarChar, id)
+                .query('DELETE FROM features WHERE id = @id');
+            await pool.close();
+
+            if (result.rowsAffected[0] === 0) {
+                context.res.status = 404;
+                context.res.body = { error: 'Feature not found' };
+            } else {
+                context.res.status = 200;
+                context.res.body = { message: 'Feature deleted successfully' };
+            }
+
+        } else {
+            context.res.status = 404;
+            context.res.body = { error: 'Not found' };
+        }
+
+    } catch (err) {
+        context.log.error('Error in features function:', err);
+        context.res.status = 500;
+        context.res.body = { error: 'Internal server error' };
     }
-
-    if (method === 'GET' && id) {
-      const result = await pool.request()
-        .input('id', sql.NVarChar, id)
-        .query('SELECT * FROM dbo.features WHERE id = @id')
-      if (!result.recordset.length) {
-        context.res.status = 404
-        context.res.body = { error: 'Feature not found' }
-        return
-      }
-      context.res.status = 200
-      context.res.body = mapDbFeature(result.recordset[0])
-      return
-    }
-
-    if (method === 'POST' && !id) {
-      const featureInput = normalizeInput(req.body || {})
-      const newId = randomUUID()
-      const result = await pool.request()
-        .input('id', sql.NVarChar, newId)
-        .input('title', sql.NVarChar, featureInput.title)
-        .input('date', sql.NVarChar, featureInput.date)
-        .input('icon', sql.NVarChar, featureInput.icon)
-        .input('status', sql.NVarChar, featureInput.status)
-        .input('description', sql.NVarChar, featureInput.description)
-        .input('tldr', sql.NVarChar, featureInput.tldr)
-        .input('category', sql.NVarChar, featureInput.category)
-        .input('tags', sql.NVarChar(sql.MAX), serializeTags(featureInput.tags))
-        .input('links', sql.NVarChar(sql.MAX), serializeLinks(featureInput.links))
-        .input('image', sql.NVarChar(sql.MAX), featureInput.image)
-        .input('upvotes', sql.Int, featureInput.upvotes)
-        .input('comments', sql.Int, featureInput.comments)
-        .input('rating', sql.Float, featureInput.rating)
-        .input('is_starred', sql.Bit, featureInput.isStarred ? 1 : 0)
-        .query(`
-          INSERT INTO dbo.features (id, title, date, icon, status, description, tldr, category, tags, links, image, upvotes, comments, rating, is_starred)
-          VALUES (@id, @title, @date, @icon, @status, @description, @tldr, @category, @tags, @links, @image, @upvotes, @comments, @rating, @is_starred);
-          SELECT * FROM dbo.features WHERE id = @id;
-        `)
-      context.res.status = 201
-      context.res.body = mapDbFeature(result.recordset[0])
-      return
-    }
-
-    if (method === 'PUT' && id) {
-      const existingResult = await pool.request()
-        .input('id', sql.NVarChar, id)
-        .query('SELECT * FROM dbo.features WHERE id = @id')
-
-      if (!existingResult.recordset.length) {
-        context.res.status = 404
-        context.res.body = { error: 'Feature not found' }
-        return
-      }
-
-      const existing = mapDbFeature(existingResult.recordset[0])
-      const featureInput = normalizeInput(req.body || {}, existing)
-
-      const result = await pool.request()
-        .input('id', sql.NVarChar, id)
-        .input('title', sql.NVarChar, featureInput.title)
-        .input('date', sql.NVarChar, featureInput.date)
-        .input('icon', sql.NVarChar, featureInput.icon)
-        .input('status', sql.NVarChar, featureInput.status)
-        .input('description', sql.NVarChar, featureInput.description)
-        .input('tldr', sql.NVarChar, featureInput.tldr)
-        .input('category', sql.NVarChar, featureInput.category)
-        .input('tags', sql.NVarChar(sql.MAX), serializeTags(featureInput.tags))
-        .input('links', sql.NVarChar(sql.MAX), serializeLinks(featureInput.links))
-        .input('image', sql.NVarChar(sql.MAX), featureInput.image)
-        .input('upvotes', sql.Int, featureInput.upvotes)
-        .input('comments', sql.Int, featureInput.comments)
-        .input('rating', sql.Float, featureInput.rating)
-        .input('is_starred', sql.Bit, featureInput.isStarred ? 1 : 0)
-        .query(`
-          UPDATE dbo.features
-          SET title = @title,
-              date = @date,
-              icon = @icon,
-              status = @status,
-              description = @description,
-              tldr = @tldr,
-              category = @category,
-              tags = @tags,
-              links = @links,
-              image = @image,
-              upvotes = @upvotes,
-              comments = @comments,
-              rating = @rating,
-              is_starred = @is_starred,
-              updated_at = GETDATE()
-          WHERE id = @id;
-          SELECT * FROM dbo.features WHERE id = @id;
-        `)
-
-      context.res.status = 200
-      context.res.body = mapDbFeature(result.recordset[0])
-      return
-    }
-
-    if (method === 'DELETE' && id) {
-      const result = await pool.request()
-        .input('id', sql.NVarChar, id)
-        .query('DELETE FROM dbo.features WHERE id = @id')
-
-      if (!result.rowsAffected[0]) {
-        context.res.status = 404
-        context.res.body = { error: 'Feature not found' }
-        return
-      }
-
-      context.res.status = 200
-      context.res.body = { message: 'Feature deleted successfully' }
-      return
-    }
-
-  if (method === 'POST' && id && action === 'upvote') {
-    const result = await pool.request()
-      .input('id', sql.NVarChar, id)
-      .query(`
-        UPDATE dbo.features
-        SET upvotes = ISNULL(upvotes, 0) + 1, updated_at = GETDATE()
-        WHERE id = @id;
-        SELECT * FROM dbo.features WHERE id = @id;
-      `)
-
-    if (!result.recordset.length) {
-      context.res.status = 404
-      context.res.body = { error: 'Feature not found' }
-      return
-    }
-
-    context.res.status = 200
-    context.res.body = mapDbFeature(result.recordset[0])
-    return
-  }
-
-  if (method === 'POST' && id && action === 'star') {
-    const isStarred = Boolean((req.body && req.body.isStarred) ?? true)
-    const result = await pool.request()
-      .input('id', sql.NVarChar, id)
-      .input('is_starred', sql.Bit, isStarred ? 1 : 0)
-      .query(`
-        UPDATE dbo.features
-        SET is_starred = @is_starred, updated_at = GETDATE()
-        WHERE id = @id;
-        SELECT * FROM dbo.features WHERE id = @id;
-      `)
-
-    if (!result.recordset.length) {
-      context.res.status = 404
-      context.res.body = { error: 'Feature not found' }
-      return
-    }
-
-    context.res.status = 200
-    context.res.body = mapDbFeature(result.recordset[0])
-    return
-  }
-
-    context.res.status = 405
-    context.res.body = { error: 'Method not allowed' }
-  } catch (error) {
-    context.log.error('Features API error', error)
-    context.res.status = 500
-    context.res.body = { error: 'Internal server error' }
-  } finally {
-    if (pool) {
-      try {
-        await pool.close()
-      } catch (closeError) {
-        context.log.error('Failed to close pool', closeError)
-      }
-    }
-  }
-}
+};
