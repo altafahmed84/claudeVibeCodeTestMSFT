@@ -8,7 +8,13 @@ const config = {
   password: 'CopilotApp2024!',
   options: {
     encrypt: true,
-    enableArithAbort: true
+    enableArithAbort: true,
+    charset: 'utf8'
+  },
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000
   }
 }
 
