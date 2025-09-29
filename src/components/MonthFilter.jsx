@@ -16,11 +16,11 @@ export default function MonthFilter() {
       <select
         value={selectedMonth}
         onChange={(e) => setSelectedMonth(e.target.value)}
-        className="bg-surface border border-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+        className="bg-primary-surface border border-primary-surfaceElevated rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-text-accent focus:border-text-accent hover:bg-primary-surfaceElevated transition-colors"
       >
-        <option value="all">All Months</option>
+        <option value="all" className="bg-primary-surface text-text-primary">All Months</option>
         {availableMonths.map(month => (
-          <option key={month} value={month}>
+          <option key={month} value={month} className="bg-primary-surface text-text-primary">
             {capitalizeFirst(month)}
           </option>
         ))}

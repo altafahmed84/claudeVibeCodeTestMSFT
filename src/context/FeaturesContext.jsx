@@ -11,15 +11,23 @@ export const useFeatures = () => {
   return context
 }
 
-// Initial hardcoded features from Figma
+// Initial hardcoded features with enhanced engagement data
 const initialFeatures = [
   {
     id: uuidv4(),
     title: "GPT-5",
     date: "August 7th",
-    icon: "🌀",
+    icon: "🧠",
     status: "General availability",
-    description: "Advanced language model capabilities with enhanced reasoning and improved safety features"
+    description: "Advanced language model capabilities with enhanced reasoning and improved safety features",
+    tldr: "Next-gen AI model with enhanced reasoning and safety",
+    category: "AI Models",
+    tags: ["GPT", "AI Model", "General AI"],
+    upvotes: 856,
+    comments: 142,
+    rating: 4.8,
+    image: null,
+    links: []
   },
   {
     id: uuidv4(),
@@ -27,15 +35,15 @@ const initialFeatures = [
     date: "August 18th",
     icon: "📊",
     status: "Released",
-    description: "Excel integration for AI-powered functions and data analysis"
-  },
-  {
-    id: uuidv4(),
-    title: "Human-agent collab in Teams",
-    date: "September 18th",
-    icon: "👥",
-    status: "Released",
-    description: "Collaborative AI agent features in Microsoft Teams for enhanced productivity"
+    description: "Excel integration for AI-powered functions and data analysis",
+    tldr: "AI-powered Excel functions for data analysis",
+    category: "Copilot",
+    tags: ["Excel", "Functions", "Data Analysis"],
+    upvotes: 324,
+    comments: 45,
+    rating: 4.6,
+    image: null,
+    links: []
   },
   {
     id: uuidv4(),
@@ -43,15 +51,47 @@ const initialFeatures = [
     date: "September 1st",
     icon: "🏗️",
     status: "Released",
-    description: "Enhanced value delivery through Copilot Studio integration with Microsoft 365"
+    description: "Enhanced value delivery through Copilot Studio integration with Microsoft 365",
+    tldr: "Build custom AI agents with no-code Copilot Studio",
+    category: "Copilot",
+    tags: ["Copilot Studio", "No-Code", "M365"],
+    upvotes: 267,
+    comments: 38,
+    rating: 4.4,
+    image: null,
+    links: []
   },
   {
     id: uuidv4(),
-    title: "Copilot Chat in M365 Apps",
+    title: "Copilot Chat in Microsoft 365 Apps",
     date: "September 15th",
     icon: "💬",
     status: "Released",
-    description: "Integrated chat across Word, Excel, PowerPoint, Outlook, and OneNote"
+    description: "AI-powered chat assistant directly integrated into Word, Excel, PowerPoint, and Outlook for seamless productivity enhancement",
+    tldr: "AI chat across all M365 apps for productivity",
+    category: "Copilot",
+    tags: ["AI Assistant", "Productivity", "M365"],
+    upvotes: 247,
+    comments: 23,
+    rating: 4.7,
+    image: null,
+    links: []
+  },
+  {
+    id: uuidv4(),
+    title: "Human-agent collab in Teams",
+    date: "September 18th",
+    icon: "👥",
+    status: "Released",
+    description: "Collaborative AI agent features in Microsoft Teams for enhanced productivity",
+    tldr: "AI agents working alongside humans in Teams",
+    category: "Teams",
+    tags: ["Teams", "Collaboration", "AI Agents"],
+    upvotes: 189,
+    comments: 31,
+    rating: 4.3,
+    image: null,
+    links: []
   },
   {
     id: uuidv4(),
@@ -59,7 +99,15 @@ const initialFeatures = [
     date: "October 10th",
     icon: "🎯",
     status: "Released",
-    description: "Specialized AI solutions tailored for different organizational roles and workflows"
+    description: "Specialized AI solutions tailored for different organizational roles and workflows",
+    tldr: "Customized AI solutions for specific job roles",
+    category: "Copilot",
+    tags: ["Role-based", "Customization", "Enterprise"],
+    upvotes: 134,
+    comments: 19,
+    rating: 4.5,
+    image: null,
+    links: []
   }
 ]
 
@@ -250,6 +298,41 @@ export const FeaturesProvider = ({ children }) => {
     }
   }
 
+  const upvoteFeature = async (id) => {
+    try {
+      // Optimistic update
+      setFeatures(prev => prev.map(f =>
+        f.id === id ? { ...f, upvotes: (f.upvotes || 0) + 1 } : f
+      ))
+
+      const response = await fetch(`/api/features/${id}/upvote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (response.ok) {
+        const updatedFeature = await response.json()
+        setFeatures(prev => prev.map(f =>
+          f.id === id ? updatedFeature : f
+        ))
+      } else {
+        // Revert optimistic update on failure
+        setFeatures(prev => prev.map(f =>
+          f.id === id ? { ...f, upvotes: (f.upvotes || 1) - 1 } : f
+        ))
+        throw new Error('Failed to upvote feature')
+      }
+    } catch (error) {
+      console.error('Error upvoting feature:', error)
+      // Revert optimistic update on error
+      setFeatures(prev => prev.map(f =>
+        f.id === id ? { ...f, upvotes: (f.upvotes || 1) - 1 } : f
+      ))
+    }
+  }
+
   const value = {
     features,
     selectedFeature,
@@ -260,6 +343,7 @@ export const FeaturesProvider = ({ children }) => {
     addFeature,
     updateFeature,
     deleteFeature,
+    upvoteFeature,
     refreshFeatures: loadFeaturesFromDatabase,
     getFilteredAndSortedFeatures,
     getAvailableMonths

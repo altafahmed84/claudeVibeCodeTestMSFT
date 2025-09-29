@@ -1,11 +1,12 @@
+import React, { useState } from 'react'
 import { useFeatures } from '../context/FeaturesContext'
 import FeatureDetailsPanel from '../components/FeatureDetailsPanel'
 import MonthFilter from '../components/MonthFilter'
 
 const Timeline = () => {
-  const { setSelectedFeature, loading, getFilteredAndSortedFeatures } = useFeatures()
+  const { setSelectedFeature, loading, getFilteredAndSortedFeatures, upvoteFeature } = useFeatures()
+  const [showFilter, setShowFilter] = useState(false)
 
-  // Get the filtered and sorted features for display
   const sortedFeatures = getFilteredAndSortedFeatures()
 
   const handleFeatureClick = (feature) => {
@@ -16,112 +17,171 @@ const Timeline = () => {
     switch (status) {
       case 'Released':
       case 'General availability':
-        return 'bg-green-500/20 text-green-400 border-green-500/30'
+        return 'bg-green-600 text-white'
       case 'Beta':
-        return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+        return 'bg-blue-600 text-white'
       case 'Preview':
-        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+        return 'bg-yellow-600 text-white'
       case 'Coming Soon':
-        return 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+        return 'bg-purple-600 text-white'
       default:
-        return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+        return 'bg-gray-600 text-white'
     }
+  }
+
+  const formatDate = (dateString) => {
+    if (!dateString) return ''
+
+    // Handle "August 7th" format and convert to "Aug 7, 2025"
+    const monthMap = {
+      'january': 'Jan', 'february': 'Feb', 'march': 'Mar', 'april': 'Apr',
+      'may': 'May', 'june': 'Jun', 'july': 'Jul', 'august': 'Aug',
+      'september': 'Sep', 'october': 'Oct', 'november': 'Nov', 'december': 'Dec'
+    }
+
+    const match = dateString.match(/^(\w+)\s+(\d+)/)
+    if (match) {
+      const [, monthName, day] = match
+      const shortMonth = monthMap[monthName.toLowerCase()]
+      if (shortMonth) {
+        return `${shortMonth} ${day}, 2025`
+      }
+    }
+
+    return dateString
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-primary-background flex items-center justify-center">
         <div className="text-text-secondary">Loading timeline...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-primary-background">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-timeline-gradientStart to-timeline-gradientEnd bg-clip-text text-transparent mb-4">
-            Copilot Evolution
-          </h1>
-          <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-            Track the evolution of Microsoft Copilot features across time.
-          </p>
+    <div className="min-h-screen bg-primary-background text-text-primary p-6">
+      {/* Timeline Container - Smaller and Centered */}
+      <div className="max-w-6xl mx-auto bg-primary-surface rounded-lg shadow-lg border border-primary-surfaceElevated">
+        {/* Timeline Header */}
+        <div className="flex items-center justify-between p-6 border-b border-primary-surfaceElevated">
+          <div className="flex items-center space-x-2">
+            <div className="w-5 h-5 bg-text-accent rounded flex items-center justify-center">
+              <span className="text-white text-xs">📋</span>
+            </div>
+            <h2 className="text-lg font-semibold text-text-primary">Feature Timeline</h2>
+          </div>
+          <button
+            onClick={() => setShowFilter(!showFilter)}
+            className="flex items-center space-x-2 text-text-secondary border border-primary-surfaceElevated rounded px-3 py-1.5 hover:bg-primary-surfaceElevated transition-colors"
+          >
+            <span className="text-sm">⚙️</span>
+            <span className="text-sm">Filter</span>
+          </button>
         </div>
 
-        {/* Month Filter */}
-        <div className="flex justify-center mb-8">
-          <MonthFilter />
-        </div>
+        {/* Filter Panel - Collapsible */}
+        {showFilter && (
+          <div className="px-6 py-4 border-b border-primary-surfaceElevated bg-primary-backgroundSecondary">
+            <MonthFilter />
+          </div>
+        )}
 
-        {/* Timeline Container */}
-        <div className="relative">
-          <div className="timeline-scroll pb-6">
-            <div className="flex space-x-8 min-w-max px-4">
-              {sortedFeatures.map((feature, index) => (
-                <div key={feature.id} className="flex flex-col items-center min-w-[280px]">
-                  {/* Timeline Line */}
-                  <div className="relative">
-                    {/* Connecting Line */}
-                    {index > 0 && (
-                      <div className="absolute top-6 right-full w-8 h-0.5 bg-gradient-to-r from-timeline-gradientStart to-timeline-gradientEnd"></div>
-                    )}
+        {/* Timeline Content */}
+        <div className="p-6">
+          <div className="overflow-x-auto">
+            <div className="relative min-w-max">
+              {/* Timeline Items */}
+              <div className="flex items-start space-x-8 relative px-6">
+                {/* Continuous Timeline Bar - positioned behind dots */}
+                <div
+                  className="absolute h-0.5 bg-gray-400"
+                  style={{
+                    top: '1.75rem', // Position at dot level (1.75rem from top of container)
+                    left: '2.25rem', // Start after first dot center (1.5rem padding + 0.75rem dot center)
+                    right: '2.25rem', // End before last dot center
+                    zIndex: 1
+                  }}
+                ></div>
+
+                {sortedFeatures.map((feature, index) => (
+                  <div key={feature.id} className="flex flex-col items-center min-w-[280px] flex-shrink-0 relative">
+                    {/* Date */}
+                    <div className="text-center mb-2">
+                      <div className="text-sm font-medium text-text-secondary">
+                        {formatDate(feature.date)}
+                      </div>
+                    </div>
 
                     {/* Timeline Dot */}
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-timeline-gradientStart to-timeline-gradientEnd flex items-center justify-center shadow-lg">
-                      <div className="text-2xl">{feature.icon}</div>
+                    <div className="w-3 h-3 rounded-full bg-green-500 shadow-sm mb-4 relative z-10"></div>
+
+                    {/* Feature Card */}
+                    <div className="bg-primary-surfaceElevated rounded-lg border border-primary-backgroundSecondary overflow-hidden hover:shadow-lg transition-shadow duration-200 w-full">
+                      {/* Category Badge and Status */}
+                      <div className="p-3 pb-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-1">
+                              <span className="text-sm">{feature.icon}</span>
+                              <span className="text-xs text-text-muted">{feature.category || 'Copilot'}</span>
+                            </div>
+                            <span className={`text-xs px-2 py-0.5 rounded font-medium ${getStatusColor(feature.status)}`}>
+                              {feature.status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Title and Description */}
+                      <div className="px-3 pb-3">
+                        <h3
+                          onClick={() => handleFeatureClick(feature)}
+                          className="font-semibold text-text-primary mb-2 text-sm leading-tight cursor-pointer hover:text-text-accent transition-colors"
+                        >
+                          {feature.title}
+                        </h3>
+
+                        <p className="text-xs text-text-secondary mb-3 leading-relaxed">
+                          {feature.tldr || feature.description}
+                        </p>
+
+                        {/* Engagement Stats */}
+                        <div className="flex items-center justify-between text-xs text-text-muted">
+                          <div className="flex items-center space-x-3">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                upvoteFeature(feature.id)
+                              }}
+                              className="flex items-center space-x-1 hover:text-text-accent transition-colors"
+                            >
+                              <span>{feature.upvotes || 0} upvotes</span>
+                            </button>
+                            <span>{feature.comments || 0} comments</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span>⭐</span>
+                            <span className="font-medium">{feature.rating || 0}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Feature Card */}
-                  <div
-                    onClick={() => handleFeatureClick(feature)}
-                    className="mt-6 bg-primary-surface rounded-2xl p-6 cursor-pointer hover:bg-primary-surfaceElevated transition-all duration-300 border border-primary-surfaceElevated hover:border-text-accent/30 shadow-lg hover:shadow-xl hover:shadow-text-accent/10 group w-full"
-                  >
-                    {/* Date */}
-                    <div className="text-text-accent font-semibold text-sm mb-3 text-center">
-                      {feature.date}
-                    </div>
-
-                    {/* Title */}
-                    <h3 className="text-lg font-semibold text-text-primary mb-3 text-center group-hover:text-text-accent transition-colors duration-200">
-                      {feature.title}
-                    </h3>
-
-                    {/* Status Badge */}
-                    <div className="flex justify-center mb-4">
-                      <span className={`
-                        px-3 py-1 rounded-full text-xs font-medium border
-                        ${getStatusColor(feature.status)}
-                      `}>
-                        {feature.status}
-                      </span>
-                    </div>
-
-                    {/* Description */}
-                    <p className="text-text-muted text-sm leading-relaxed text-center line-clamp-3">
-                      {feature.description}
-                    </p>
-
-                    {/* Hover Indicator */}
-                    <div className="mt-4 text-text-accent text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-center">
-                      Click to view details →
-                    </div>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Scrollbar indicator */}
-          <div className="text-center text-text-muted text-sm mt-4">
-            ← Scroll horizontally to view all features →
+          {/* Scroll indicator */}
+          <div className="text-center text-text-muted text-sm mt-6">
+            ← Scroll to see all features →
           </div>
         </div>
-
-        {/* Feature Details Panel */}
-        <FeatureDetailsPanel />
       </div>
+
+      {/* Feature Details Panel */}
+      <FeatureDetailsPanel />
     </div>
   )
 }
