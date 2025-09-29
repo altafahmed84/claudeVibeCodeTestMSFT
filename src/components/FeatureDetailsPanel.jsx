@@ -73,10 +73,10 @@ const FeatureDetailsPanel = () => {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setShowEditor(true)}
-              className="p-2 hover:bg-primary-surfaceElevated rounded-lg transition-colors duration-200"
-              aria-label="Edit feature"
+              className="flex items-center space-x-2 px-3 py-1.5 bg-text-accent/10 text-text-accent border border-text-accent/40 rounded-lg hover:bg-text-accent/20 transition-colors duration-200"
             >
-              <Edit3 className="w-5 h-5 text-text-secondary hover:text-text-accent" />
+              <Edit3 className="w-4 h-4" />
+              <span className="text-sm font-medium">Edit</span>
             </button>
             <button
               onClick={handleClose}
@@ -160,6 +160,16 @@ const FeatureDetailsPanel = () => {
               </div>
             </div>
           )}
+        </div>
+
+        <div className="px-6 pb-6">
+          <button
+            onClick={() => setShowEditor(true)}
+            className="w-full inline-flex items-center justify-center space-x-2 px-4 py-3 bg-text-accent text-white rounded-lg font-medium shadow-lg hover:bg-text-accent/90 transition-colors"
+          >
+            <Edit3 className="w-4 h-4" />
+            <span>Edit This Feature</span>
+          </button>
         </div>
       </div>
 
