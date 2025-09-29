@@ -6,10 +6,10 @@
     "start": "func start"
   },
   "dependencies": {
-    "@azure/functions": "^4.0.0",
-    "mssql": "^10.0.1"
+    "@azure/functions": "^3.5.1",
+    "mssql": "^9.1.1"
   },
   "devDependencies": {
-    "@azure/functions": "^4.0.0"
+    "@azure/functions": "^3.5.1"
   }
 }
