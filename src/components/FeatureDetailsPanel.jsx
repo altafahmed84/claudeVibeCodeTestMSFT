@@ -23,8 +23,6 @@ const FeatureDetailsPanel = () => {
   const { features, selectedFeature, setSelectedFeature } = useFeatures()
   const [showEditor, setShowEditor] = useState(false)
 
-  if (!selectedFeature) return null
-
   useEffect(() => {
     if (!selectedFeature) return
     const refreshed = features.find(feature => feature.id === selectedFeature.id)
@@ -32,6 +30,8 @@ const FeatureDetailsPanel = () => {
       setSelectedFeature(refreshed)
     }
   }, [features, selectedFeature, setSelectedFeature])
+
+  if (!selectedFeature) return null
 
   const handleClose = () => {
     setShowEditor(false)
