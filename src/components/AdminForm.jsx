@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+﻿import React, { useState, useEffect } from 'react'
+import { Calendar, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useFeatures } from '../context/FeaturesContext'
 
 const AdminForm = ({ feature = null, onClose, mode = 'create' }) => {
@@ -11,7 +12,7 @@ const AdminForm = ({ feature = null, onClose, mode = 'create' }) => {
     category: feature?.category || 'Copilot',
     status: feature?.status || 'Coming Soon',
     date: feature?.date || '',
-    icon: feature?.icon || '🚀',
+    icon: feature?.icon || '🧠',
     tags: feature?.tags || [],
     links: feature?.links || [],
     image: feature?.image || null
@@ -22,9 +23,139 @@ const AdminForm = ({ feature = null, onClose, mode = 'create' }) => {
   const [newLink, setNewLink] = useState({ title: '', url: '' })
   const [imagePreview, setImagePreview] = useState(feature?.image || null)
 
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth())
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
+  const [showYearDropdown, setShowYearDropdown] = useState(false)
+
   const categories = ['Copilot', 'AI Agents', 'Teams', 'Analytics']
   const statuses = ['Released', 'Coming Soon', 'In Development', 'Beta', 'Preview', 'General availability']
-  const icons = ['🚀', '🧠', '📊', '💬', '👥', '🎯', '⚡', '🔧', '📈', '🎨', '🔍', '📱', '💡', '🌟']
+  const icons = ['🧠', '📊', '🛠️', '💬', '🤝', '🧑‍💼', '🚀', '⚙️', '💡', '📅', '🗺️', '🧩', '🤖', '🏢']
+
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  const monthIndexMap = monthNames.reduce((acc, name, index) => { acc[name.toLowerCase()] = index; return acc }, {})
+
+  const getMonthIndex = (name) => {
+    if (!name) return -1
+    return Object.prototype.hasOwnProperty.call(monthIndexMap, name.toLowerCase()) ? monthIndexMap[name.toLowerCase()] : -1
+  }
+
+  const formatDateForDisplay = (dateObj) => {
+    if (!(dateObj instanceof Date) || Number.isNaN(dateObj.getTime())) {
+      return ''
+    }
+    const options = { month: 'long', day: 'numeric' }
+    if (dateObj.getFullYear() !== new Date().getFullYear()) {
+      options.year = 'numeric'
+    }
+    return dateObj.toLocaleDateString('en-US', options)
+  }
+
+  const parseDateString = (value) => {
+    if (!value) return new Date()
+
+    const direct = new Date(value)
+    if (!Number.isNaN(direct.getTime())) {
+      return direct
+    }
+
+    const cleaned = value.replace(/(\d+)(st|nd|rd|th)/i, '$1')
+    const monthDayMatch = cleaned.match(/^(\w+)\s+(\d{1,2})(?:,\s*(\d{4}))?/)
+    if (monthDayMatch) {
+      const [, monthName, day, year] = monthDayMatch
+      const monthIndex = getMonthIndex(monthName)
+      if (monthIndex >= 0) {
+        const yearNumber = year ? parseInt(year, 10) : new Date().getFullYear()
+        return new Date(yearNumber, monthIndex, parseInt(day, 10))
+      }
+    }
+
+    return new Date()
+  }
+
+  const updateCalendarToDate = (value) => {
+    const parsed = parseDateString(value)
+    if (!Number.isNaN(parsed.getTime())) {
+      setCurrentMonth(parsed.getMonth())
+      setCurrentYear(parsed.getFullYear())
+    }
+  }
+
+  useEffect(() => {
+    updateCalendarToDate(formData.date)
+  }, [formData.date])
+
+  const toggleDatePicker = () => {
+    if (!showDatePicker) {
+      updateCalendarToDate(formData.date)
+    }
+    setShowDatePicker(prev => !prev)
+    setShowYearDropdown(false)
+  }
+
+  const handleDateSelect = (dateObj) => {
+    const formatted = formatDateForDisplay(dateObj)
+    handleInputChange('date', formatted)
+    setShowDatePicker(false)
+    setShowYearDropdown(false)
+  }
+
+  const navigateMonth = (direction) => {
+    if (direction === 'prev') {
+      if (currentMonth === 0) {
+        setCurrentMonth(11)
+        setCurrentYear(prev => prev - 1)
+      } else {
+        setCurrentMonth(prev => prev - 1)
+      }
+    } else {
+      if (currentMonth === 11) {
+        setCurrentMonth(0)
+        setCurrentYear(prev => prev + 1)
+      } else {
+        setCurrentMonth(prev => prev + 1)
+      }
+    }
+  }
+
+  const generateYearOptions = () => {
+    const current = new Date().getFullYear()
+    const years = []
+    for (let year = current - 5; year <= current + 10; year += 1) {
+      years.push(year)
+    }
+    return years
+  }
+
+  const generateCalendar = () => {
+    const firstDay = new Date(currentYear, currentMonth, 1).getDay()
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
+    const calendar = []
+
+    for (let i = 0; i < firstDay; i += 1) {
+      calendar.push(null)
+    }
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      calendar.push(new Date(currentYear, currentMonth, day))
+    }
+
+    return calendar
+  }
+
+  const handleManualDateKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      const value = event.target.value.trim()
+      if (value) {
+        handleInputChange('date', value)
+        setShowDatePicker(false)
+        setShowYearDropdown(false)
+        event.target.value = ''
+      }
+    }
+  }
+
+
 
   const validateForm = () => {
     const newErrors = {}
@@ -268,16 +399,108 @@ const AdminForm = ({ feature = null, onClose, mode = 'create' }) => {
               <label className="block text-sm font-medium text-text-primary mb-2">
                 Release Date *
               </label>
-              <input
-                type="text"
-                value={formData.date}
-                onChange={(e) => handleInputChange('date', e.target.value)}
-                className={`w-full px-3 py-2 bg-primary-surfaceElevated border rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-text-accent ${
-                  errors.date ? 'border-red-500' : 'border-primary-backgroundSecondary'
-                }`}
-                placeholder="e.g., August 7th, September 1st"
-              />
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={toggleDatePicker}
+                  className={`w-full flex items-center justify-between px-3 py-2 bg-primary-surfaceElevated border rounded-lg text-left text-text-primary hover:border-text-accent/60 transition-colors ${errors.date ? 'border-red-500' : 'border-primary-backgroundSecondary'}`}
+                >
+                  <span className="flex items-center space-x-2">
+                    <Calendar className="w-4 h-4 text-text-secondary" />
+                    <span>{formData.date || 'Select release date'}</span>
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-text-secondary transition-transform ${showDatePicker ? 'transform rotate-180' : ''}`}
+                  />
+                </button>
+
+                {showDatePicker && (
+                  <div className="absolute z-20 mt-2 w-full md:w-80 bg-primary-surface rounded-xl border border-primary-surfaceElevated shadow-xl p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <button
+                        type="button"
+                        onClick={() => navigateMonth('prev')}
+                        className="p-2 hover:bg-primary-surfaceElevated rounded-lg transition-colors duration-200"
+                      >
+                        <ChevronLeft className="w-4 h-4 text-text-secondary hover:text-text-primary" />
+                      </button>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-text-primary">{monthNames[currentMonth]}</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowYearDropdown(prev => !prev)}
+                          className="flex items-center space-x-1 text-sm text-text-secondary hover:text-text-primary"
+                        >
+                          <span>{currentYear}</span>
+                          <ChevronDown
+                            className={`w-3 h-3 transition-transform ${showYearDropdown ? 'transform rotate-180' : ''}`}
+                          />
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigateMonth('next')}
+                        className="p-2 hover:bg-primary-surfaceElevated rounded-lg transition-colors duration-200"
+                      >
+                        <ChevronRight className="w-4 h-4 text-text-secondary hover:text-text-primary" />
+                      </button>
+                    </div>
+
+                    {showYearDropdown && (
+                      <div className="max-h-40 overflow-y-auto border border-primary-surfaceElevated rounded-lg mb-3">
+                        {generateYearOptions().map((year) => (
+                          <button
+                            key={year}
+                            type="button"
+                            onClick={() => {
+                              setCurrentYear(year)
+                              setShowYearDropdown(false)
+                            }}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-primary-surfaceElevated ${year === currentYear ? 'text-text-accent' : 'text-text-primary'}`}
+                          >
+                            {year}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-7 gap-1 text-center text-xs text-text-muted mb-2">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                        <div key={day}>{day}</div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1 text-sm mb-4">
+                      {generateCalendar().map((date, index) => (
+                        <div key={index} className="p-1">
+                          {date ? (
+                            <button
+                              type="button"
+                              onClick={() => handleDateSelect(date)}
+                              className="w-8 h-8 rounded-lg hover:bg-primary-surfaceElevated text-text-primary hover:text-text-accent transition-colors duration-200"
+                            >
+                              {date.getDate()}
+                            </button>
+                          ) : (
+                            <div className="w-8 h-8" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="border-t border-primary-surfaceElevated pt-3">
+                      <input
+                        type="text"
+                        placeholder="Or type custom date (e.g., Q4 2024)"
+                        onKeyDown={handleManualDateKeyDown}
+                        className="w-full px-3 py-2 bg-primary-background border border-primary-surfaceElevated rounded-lg text-text-primary placeholder-text-muted text-sm focus:outline-none focus:border-text-accent transition-colors duration-200"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
               {errors.date && <p className="mt-1 text-sm text-red-400">{errors.date}</p>}
+
             </div>
 
             <div>
@@ -452,3 +675,6 @@ const AdminForm = ({ feature = null, onClose, mode = 'create' }) => {
 }
 
 export default AdminForm
+
+
+

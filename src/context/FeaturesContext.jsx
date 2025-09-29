@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+﻿import React, { createContext, useContext, useState, useEffect } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 
 const FeaturesContext = createContext()
@@ -15,14 +15,14 @@ export const useFeatures = () => {
 const initialFeatures = [
   {
     id: uuidv4(),
-    title: "GPT-5",
-    date: "August 7th",
-    icon: "🧠",
-    status: "General availability",
-    description: "Advanced language model capabilities with enhanced reasoning and improved safety features",
-    tldr: "Next-gen AI model with enhanced reasoning and safety",
-    category: "AI Models",
-    tags: ["GPT", "AI Model", "General AI"],
+    title: 'GPT-5',
+    date: 'August 7th',
+    icon: '🧠',
+    status: 'General availability',
+    description: 'Advanced language model capabilities with enhanced reasoning and improved safety features',
+    tldr: 'Next-gen AI model with enhanced reasoning and safety',
+    category: 'AI Models',
+    tags: ['GPT', 'AI Model', 'General AI'],
     upvotes: 856,
     comments: 142,
     rating: 4.8,
@@ -31,14 +31,14 @@ const initialFeatures = [
   },
   {
     id: uuidv4(),
-    title: "Copilot function =Copilot()",
-    date: "August 18th",
-    icon: "📊",
-    status: "Released",
-    description: "Excel integration for AI-powered functions and data analysis",
-    tldr: "AI-powered Excel functions for data analysis",
-    category: "Copilot",
-    tags: ["Excel", "Functions", "Data Analysis"],
+    title: 'Copilot function =Copilot()',
+    date: 'August 18th',
+    icon: '📊',
+    status: 'Released',
+    description: 'Excel integration for AI-powered functions and data analysis',
+    tldr: 'AI-powered Excel functions for data analysis',
+    category: 'Copilot',
+    tags: ['Excel', 'Functions', 'Data Analysis'],
     upvotes: 324,
     comments: 45,
     rating: 4.6,
@@ -47,14 +47,14 @@ const initialFeatures = [
   },
   {
     id: uuidv4(),
-    title: "Copilot Studio Value in M365 Copilot",
-    date: "September 1st",
-    icon: "🏗️",
-    status: "Released",
-    description: "Enhanced value delivery through Copilot Studio integration with Microsoft 365",
-    tldr: "Build custom AI agents with no-code Copilot Studio",
-    category: "Copilot",
-    tags: ["Copilot Studio", "No-Code", "M365"],
+    title: 'Copilot Studio Value in M365 Copilot',
+    date: 'September 1st',
+    icon: '🛠️',
+    status: 'Released',
+    description: 'Enhanced value delivery through Copilot Studio integration with Microsoft 365',
+    tldr: 'Build custom AI agents with no-code Copilot Studio',
+    category: 'Copilot',
+    tags: ['Copilot Studio', 'No-Code', 'M365'],
     upvotes: 267,
     comments: 38,
     rating: 4.4,
@@ -63,14 +63,14 @@ const initialFeatures = [
   },
   {
     id: uuidv4(),
-    title: "Copilot Chat in Microsoft 365 Apps",
-    date: "September 15th",
-    icon: "💬",
-    status: "Released",
-    description: "AI-powered chat assistant directly integrated into Word, Excel, PowerPoint, and Outlook for seamless productivity enhancement",
-    tldr: "AI chat across all M365 apps for productivity",
-    category: "Copilot",
-    tags: ["AI Assistant", "Productivity", "M365"],
+    title: 'Copilot Chat in Microsoft 365 Apps',
+    date: 'September 15th',
+    icon: '💬',
+    status: 'Released',
+    description: 'AI-powered chat assistant directly integrated into Word, Excel, PowerPoint, and Outlook for seamless productivity enhancement',
+    tldr: 'AI chat across all M365 apps for productivity',
+    category: 'Copilot',
+    tags: ['AI Assistant', 'Productivity', 'M365'],
     upvotes: 247,
     comments: 23,
     rating: 4.7,
@@ -79,14 +79,14 @@ const initialFeatures = [
   },
   {
     id: uuidv4(),
-    title: "Human-agent collab in Teams",
-    date: "September 18th",
-    icon: "👥",
-    status: "Released",
-    description: "Collaborative AI agent features in Microsoft Teams for enhanced productivity",
-    tldr: "AI agents working alongside humans in Teams",
-    category: "Teams",
-    tags: ["Teams", "Collaboration", "AI Agents"],
+    title: 'Human-agent collab in Teams',
+    date: 'September 18th',
+    icon: '🤝',
+    status: 'Released',
+    description: 'Collaborative AI agent features in Microsoft Teams for enhanced productivity',
+    tldr: 'AI agents working alongside humans in Teams',
+    category: 'Teams',
+    tags: ['Teams', 'Collaboration', 'AI Agents'],
     upvotes: 189,
     comments: 31,
     rating: 4.3,
@@ -95,14 +95,14 @@ const initialFeatures = [
   },
   {
     id: uuidv4(),
-    title: "Role-based AI Solutions in M365 Copilot",
-    date: "October 10th",
-    icon: "🎯",
-    status: "Released",
-    description: "Specialized AI solutions tailored for different organizational roles and workflows",
-    tldr: "Customized AI solutions for specific job roles",
-    category: "Copilot",
-    tags: ["Role-based", "Customization", "Enterprise"],
+    title: 'Role-based AI Solutions in M365 Copilot',
+    date: 'October 10th',
+    icon: '🧑‍💼',
+    status: 'Released',
+    description: 'Specialized AI solutions tailored for different organizational roles and workflows',
+    tldr: 'Customized AI solutions for specific job roles',
+    category: 'Copilot',
+    tags: ['Role-based', 'Customization', 'Enterprise'],
     upvotes: 134,
     comments: 19,
     rating: 4.5,
@@ -351,12 +351,16 @@ export const FeaturesProvider = ({ children }) => {
   const updateFeature = async (id, updates) => {
     setLoading(true)
     try {
+      const existingFeature = features.find(feature => feature.id === id) || {}
+      const payload = { ...existingFeature, ...updates }
+      const { id: _, created_at, updated_at, ...body } = payload
+
       const response = await fetch(`/api/features/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(updates)
+        body: JSON.stringify(body)
       })
 
       if (response.ok) {
