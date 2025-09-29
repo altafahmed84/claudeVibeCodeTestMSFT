@@ -20,7 +20,7 @@ const getStatusColor = (status) => {
 }
 
 const FeatureDetailsPanel = () => {
-  const { features, selectedFeature, setSelectedFeature } = useFeatures()
+  const { features, selectedFeature, setSelectedFeature, upvoteFeature, toggleStarFeature } = useFeatures()
   const [showEditor, setShowEditor] = useState(false)
 
   useEffect(() => {
@@ -117,10 +117,30 @@ const FeatureDetailsPanel = () => {
                 <span>{selectedFeature.category}</span>
               </div>
             )}
-            <div className="flex items-center gap-6 text-sm text-text-secondary">
-              <span>{selectedFeature.upvotes || 0} upvotes</span>
-              <span>{selectedFeature.comments || 0} comments</span>
-              <span>Rating {selectedFeature.rating || 0}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => upvoteFeature(selectedFeature.id)}
+                  className="flex items-center gap-2 px-3 py-2 bg-primary-surfaceElevated hover:bg-primary-backgroundSecondary border border-primary-surfaceElevated rounded-lg transition-colors"
+                >
+                  <span className="text-green-500">👍</span>
+                  <span className="text-sm text-text-primary">{selectedFeature.upvotes || 0}</span>
+                </button>
+                <div className="flex items-center gap-2 text-sm text-text-secondary">
+                  <span>💬 {selectedFeature.comments || 0}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => toggleStarFeature(selectedFeature.id, !selectedFeature.isStarred)}
+                className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors ${
+                  selectedFeature.isStarred
+                    ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30'
+                    : 'bg-primary-surfaceElevated border-primary-surfaceElevated text-text-secondary hover:bg-primary-backgroundSecondary hover:text-yellow-400'
+                }`}
+              >
+                <span className={selectedFeature.isStarred ? 'text-yellow-400' : 'text-gray-400'}>⭐</span>
+                <span className="text-sm font-medium">{selectedFeature.rating || 0}</span>
+              </button>
             </div>
           </div>
 

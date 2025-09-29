@@ -27,6 +27,7 @@ const INITIAL_COLUMNS = `
   upvotes INT NOT NULL DEFAULT 0,
   comments INT NOT NULL DEFAULT 0,
   rating FLOAT NULL,
+  is_starred BIT NOT NULL DEFAULT 0,
   created_at DATETIME2 DEFAULT GETDATE(),
   updated_at DATETIME2 DEFAULT GETDATE()
 `
@@ -54,6 +55,8 @@ const ensureSchema = async (pool) => {
       ALTER TABLE dbo.features ADD comments INT NOT NULL CONSTRAINT DF_features_comments DEFAULT 0;
     IF COL_LENGTH('dbo.features', 'rating') IS NULL
       ALTER TABLE dbo.features ADD rating FLOAT NULL;
+    IF COL_LENGTH('dbo.features', 'is_starred') IS NULL
+      ALTER TABLE dbo.features ADD is_starred BIT NOT NULL CONSTRAINT DF_features_is_starred DEFAULT 0;
   `)
 
   await pool.request().query(`
@@ -64,6 +67,7 @@ const ensureSchema = async (pool) => {
     UPDATE dbo.features SET upvotes = 0 WHERE upvotes IS NULL;
     UPDATE dbo.features SET comments = 0 WHERE comments IS NULL;
     UPDATE dbo.features SET rating = 0 WHERE rating IS NULL;
+    UPDATE dbo.features SET is_starred = 0 WHERE is_starred IS NULL;
   `)
 }
 
@@ -92,6 +96,7 @@ const mapDbFeature = (record) => ({
   upvotes: record.upvotes ?? 0,
   comments: record.comments ?? 0,
   rating: record.rating ?? 0,
+  isStarred: Boolean(record.is_starred),
   created_at: record.created_at,
   updated_at: record.updated_at
 })
@@ -128,7 +133,8 @@ const normalizeInput = (body = {}, existing = {}) => {
     image: body.image ?? existing.image ?? null,
     upvotes: body.upvotes ?? existing.upvotes ?? 0,
     comments: body.comments ?? existing.comments ?? 0,
-    rating: body.rating ?? existing.rating ?? 0
+    rating: body.rating ?? existing.rating ?? 0,
+    isStarred: body.isStarred ?? existing.isStarred ?? false
   }
 }
 
@@ -147,6 +153,7 @@ module.exports = async function (context, req) {
 
   const method = (req.method || 'GET').toUpperCase()
   const id = req.params.id
+  const action = req.params.action
 
   if (method === 'OPTIONS') {
     context.res.status = 200
@@ -198,9 +205,10 @@ module.exports = async function (context, req) {
         .input('upvotes', sql.Int, featureInput.upvotes)
         .input('comments', sql.Int, featureInput.comments)
         .input('rating', sql.Float, featureInput.rating)
+        .input('is_starred', sql.Bit, featureInput.isStarred ? 1 : 0)
         .query(`
-          INSERT INTO dbo.features (id, title, date, icon, status, description, tldr, category, tags, links, image, upvotes, comments, rating)
-          VALUES (@id, @title, @date, @icon, @status, @description, @tldr, @category, @tags, @links, @image, @upvotes, @comments, @rating);
+          INSERT INTO dbo.features (id, title, date, icon, status, description, tldr, category, tags, links, image, upvotes, comments, rating, is_starred)
+          VALUES (@id, @title, @date, @icon, @status, @description, @tldr, @category, @tags, @links, @image, @upvotes, @comments, @rating, @is_starred);
           SELECT * FROM dbo.features WHERE id = @id;
         `)
       context.res.status = 201
@@ -237,6 +245,7 @@ module.exports = async function (context, req) {
         .input('upvotes', sql.Int, featureInput.upvotes)
         .input('comments', sql.Int, featureInput.comments)
         .input('rating', sql.Float, featureInput.rating)
+        .input('is_starred', sql.Bit, featureInput.isStarred ? 1 : 0)
         .query(`
           UPDATE dbo.features
           SET title = @title,
@@ -252,6 +261,7 @@ module.exports = async function (context, req) {
               upvotes = @upvotes,
               comments = @comments,
               rating = @rating,
+              is_starred = @is_starred,
               updated_at = GETDATE()
           WHERE id = @id;
           SELECT * FROM dbo.features WHERE id = @id;
@@ -277,6 +287,50 @@ module.exports = async function (context, req) {
       context.res.body = { message: 'Feature deleted successfully' }
       return
     }
+
+  if (method === 'POST' && id && action === 'upvote') {
+    const result = await pool.request()
+      .input('id', sql.NVarChar, id)
+      .query(`
+        UPDATE dbo.features
+        SET upvotes = ISNULL(upvotes, 0) + 1, updated_at = GETDATE()
+        WHERE id = @id;
+        SELECT * FROM dbo.features WHERE id = @id;
+      `)
+
+    if (!result.recordset.length) {
+      context.res.status = 404
+      context.res.body = { error: 'Feature not found' }
+      return
+    }
+
+    context.res.status = 200
+    context.res.body = mapDbFeature(result.recordset[0])
+    return
+  }
+
+  if (method === 'POST' && id && action === 'star') {
+    const isStarred = Boolean((req.body && req.body.isStarred) ?? true)
+    const result = await pool.request()
+      .input('id', sql.NVarChar, id)
+      .input('is_starred', sql.Bit, isStarred ? 1 : 0)
+      .query(`
+        UPDATE dbo.features
+        SET is_starred = @is_starred, updated_at = GETDATE()
+        WHERE id = @id;
+        SELECT * FROM dbo.features WHERE id = @id;
+      `)
+
+    if (!result.recordset.length) {
+      context.res.status = 404
+      context.res.body = { error: 'Feature not found' }
+      return
+    }
+
+    context.res.status = 200
+    context.res.body = mapDbFeature(result.recordset[0])
+    return
+  }
 
     context.res.status = 405
     context.res.body = { error: 'Method not allowed' }

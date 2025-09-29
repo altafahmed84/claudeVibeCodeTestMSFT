@@ -27,7 +27,8 @@ const initialFeatures = [
     comments: 142,
     rating: 4.8,
     image: null,
-    links: []
+    links: [],
+    isStarred: false
   },
   {
     id: uuidv4(),
@@ -43,7 +44,8 @@ const initialFeatures = [
     comments: 45,
     rating: 4.6,
     image: null,
-    links: []
+    links: [],
+    isStarred: false
   },
   {
     id: uuidv4(),
@@ -59,7 +61,8 @@ const initialFeatures = [
     comments: 38,
     rating: 4.4,
     image: null,
-    links: []
+    links: [],
+    isStarred: false
   },
   {
     id: uuidv4(),
@@ -75,7 +78,8 @@ const initialFeatures = [
     comments: 23,
     rating: 4.7,
     image: null,
-    links: []
+    links: [],
+    isStarred: false
   },
   {
     id: uuidv4(),
@@ -91,7 +95,8 @@ const initialFeatures = [
     comments: 31,
     rating: 4.3,
     image: null,
-    links: []
+    links: [],
+    isStarred: false
   },
   {
     id: uuidv4(),
@@ -107,9 +112,12 @@ const initialFeatures = [
     comments: 19,
     rating: 4.5,
     image: null,
-    links: []
+    links: [],
+    isStarred: false
   }
 ]
+
+
 
 const parseJsonArray = (value, fallback = []) => {
   if (Array.isArray(value)) {
@@ -134,7 +142,8 @@ const normalizeFeature = (feature) => ({
   links: parseJsonArray(feature.links),
   upvotes: Number.isFinite(feature.upvotes) ? feature.upvotes : Number(feature.upvotes || 0),
   comments: Number.isFinite(feature.comments) ? feature.comments : Number(feature.comments || 0),
-  rating: Number.isFinite(feature.rating) ? feature.rating : Number(feature.rating || 0)
+  rating: Number.isFinite(feature.rating) ? feature.rating : Number(feature.rating || 0),
+  isStarred: Boolean(feature.isStarred ?? feature.is_starred)
 })
 
 export const FeaturesProvider = ({ children }) => {
@@ -436,39 +445,61 @@ export const FeaturesProvider = ({ children }) => {
   }
 
   const upvoteFeature = async (id) => {
-    try {
-      // Optimistic update
-      setFeatures(prev => prev.map(f =>
-        f.id === id ? { ...f, upvotes: (f.upvotes || 0) + 1 } : f
-      ))
+    setFeatures(prev => prev.map(f =>
+      f.id === id ? { ...f, upvotes: (f.upvotes || 0) + 1 } : f
+    ))
 
+    try {
       const response = await fetch(`/api/features/${id}/upvote`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
       })
 
       if (response.ok) {
-        const updatedFeature = await response.json()
+        const updatedFeature = normalizeFeature(await response.json())
         setFeatures(prev => prev.map(f =>
           f.id === id ? updatedFeature : f
         ))
       } else {
-        // Revert optimistic update on failure
-        setFeatures(prev => prev.map(f =>
-          f.id === id ? { ...f, upvotes: (f.upvotes || 1) - 1 } : f
-        ))
         throw new Error('Failed to upvote feature')
       }
     } catch (error) {
       console.error('Error upvoting feature:', error)
-      // Revert optimistic update on error
       setFeatures(prev => prev.map(f =>
-        f.id === id ? { ...f, upvotes: (f.upvotes || 1) - 1 } : f
+        f.id === id ? { ...f, upvotes: Math.max((f.upvotes || 1) - 1, 0) } : f
       ))
     }
   }
+
+  const toggleStarFeature = async (id, nextState) => {
+    setFeatures(prev => prev.map(f =>
+      f.id === id ? { ...f, isStarred: nextState } : f
+    ))
+
+    try {
+      const response = await fetch(`/api/features/${id}/star`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isStarred: nextState })
+      })
+
+      if (response.ok) {
+        const updatedFeature = normalizeFeature(await response.json())
+        setFeatures(prev => prev.map(f =>
+          f.id === id ? updatedFeature : f
+        ))
+      } else {
+        throw new Error('Failed to update star state')
+      }
+    } catch (error) {
+      console.error('Error toggling star state:', error)
+      setFeatures(prev => prev.map(f =>
+        f.id === id ? { ...f, isStarred: !nextState } : f
+      ))
+    }
+  }
+
+
 
   const value = {
     features,
@@ -488,6 +519,7 @@ export const FeaturesProvider = ({ children }) => {
     updateFeature,
     deleteFeature,
     upvoteFeature,
+    toggleStarFeature,
     refreshFeatures: loadFeaturesFromDatabase,
     getFilteredAndSortedFeatures,
     getAvailableMonths,

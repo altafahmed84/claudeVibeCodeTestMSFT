@@ -1,10 +1,21 @@
+﻿import { Star, ThumbsUp } from 'lucide-react'
 import { useFeatures } from '../context/FeaturesContext'
 
 const FeatureCard = ({ feature, className = '' }) => {
-  const { setSelectedFeature } = useFeatures()
+  const { setSelectedFeature, toggleStarFeature, upvoteFeature } = useFeatures()
 
   const handleClick = () => {
     setSelectedFeature(feature)
+  }
+
+  const handleStarClick = (event) => {
+    event.stopPropagation()
+    toggleStarFeature(feature.id, !feature.isStarred)
+  }
+
+  const handleUpvote = (event) => {
+    event.stopPropagation()
+    upvoteFeature(feature.id)
   }
 
   const getStatusColor = (status) => {
@@ -35,32 +46,39 @@ const FeatureCard = ({ feature, className = '' }) => {
         ${className}
       `}
     >
-      {/* Feature Icon */}
       <div className="flex items-start justify-between mb-4">
         <div className="text-4xl group-hover:scale-110 transition-transform duration-200">
           {feature.icon}
         </div>
-
-        {/* Status Badge */}
-        <span className={`
-          px-3 py-1 rounded-full text-xs font-medium border
-          ${getStatusColor(feature.status)}
-        `}>
-          {feature.status}
-        </span>
+        <div className="flex items-center space-x-2">
+          <span className={`
+            px-3 py-1 rounded-full text-xs font-medium border
+            ${getStatusColor(feature.status)}
+          `}>
+            {feature.status}
+          </span>
+          <button
+            type="button"
+            onClick={handleStarClick}
+            className={`p-1.5 rounded-full border transition-colors duration-200 ${feature.isStarred ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400' : 'border-primary-backgroundSecondary text-text-secondary hover:border-text-accent/40 hover:text-text-accent'}`}
+            aria-label={feature.isStarred ? 'Unstar feature' : 'Star feature'}
+          >
+            <Star
+              className="w-4 h-4"
+              fill={feature.isStarred ? '#fbbf24' : 'none'}
+            />
+          </button>
+        </div>
       </div>
 
-      {/* Feature Title */}
       <h3 className="text-xl font-semibold text-text-primary mb-2 group-hover:text-text-accent transition-colors duration-200">
         {feature.title}
       </h3>
 
-      {/* Feature Date */}
       <p className="text-text-secondary text-sm mb-3 font-medium">
         {feature.date}
       </p>
 
-      {/* Feature Description */}
       <p className="text-text-muted text-sm leading-relaxed line-clamp-3">
         {feature.description}
       </p>
@@ -81,9 +99,21 @@ const FeatureCard = ({ feature, className = '' }) => {
         </div>
       )}
 
-      {/* Hover Indicator */}
+      <div className="mt-6 flex items-center justify-between text-xs text-text-muted">
+        <button
+          type="button"
+          onClick={handleUpvote}
+          className="inline-flex items-center space-x-1 px-2 py-1 rounded-full border border-primary-backgroundSecondary hover:border-text-accent/50 hover:text-text-accent transition-colors"
+        >
+          <ThumbsUp className="w-3 h-3" />
+          <span>{feature.upvotes || 0}</span>
+        </button>
+        <span>{feature.comments || 0} comments</span>
+        <span>Rating {feature.rating || 0}</span>
+      </div>
+
       <div className="mt-4 text-text-accent text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-        Click to view details →
+        Tap to open details →
       </div>
     </div>
   )

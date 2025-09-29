@@ -35,6 +35,7 @@ const INITIAL_COLUMNS = `
   upvotes INT NOT NULL DEFAULT 0,
   comments INT NOT NULL DEFAULT 0,
   rating FLOAT NULL,
+  is_starred BIT NOT NULL DEFAULT 0,
   created_at DATETIME2 DEFAULT GETDATE(),
   updated_at DATETIME2 DEFAULT GETDATE()
 `
@@ -62,6 +63,8 @@ const ensureSchema = async (pool) => {
       ALTER TABLE dbo.features ADD comments INT NOT NULL CONSTRAINT DF_features_comments DEFAULT 0;
     IF COL_LENGTH('dbo.features', 'rating') IS NULL
       ALTER TABLE dbo.features ADD rating FLOAT NULL;
+    IF COL_LENGTH('dbo.features', 'is_starred') IS NULL
+      ALTER TABLE dbo.features ADD is_starred BIT NOT NULL CONSTRAINT DF_features_is_starred DEFAULT 0;
   `)
 
   await pool.request().query(`
@@ -72,6 +75,7 @@ const ensureSchema = async (pool) => {
     UPDATE dbo.features SET upvotes = 0 WHERE upvotes IS NULL;
     UPDATE dbo.features SET comments = 0 WHERE comments IS NULL;
     UPDATE dbo.features SET rating = 0 WHERE rating IS NULL;
+    UPDATE dbo.features SET is_starred = 0 WHERE is_starred IS NULL;
   `)
 }
 
@@ -100,6 +104,7 @@ const mapDbFeature = (record) => ({
   upvotes: record.upvotes ?? 0,
   comments: record.comments ?? 0,
   rating: record.rating ?? 0,
+  isStarred: Boolean(record.is_starred),
   created_at: record.created_at,
   updated_at: record.updated_at
 })
@@ -136,7 +141,8 @@ const normalizeInput = (body = {}, existing = {}) => {
     image: body.image ?? existing.image ?? null,
     upvotes: body.upvotes ?? existing.upvotes ?? 0,
     comments: body.comments ?? existing.comments ?? 0,
-    rating: body.rating ?? existing.rating ?? 0
+    rating: body.rating ?? existing.rating ?? 0,
+    isStarred: body.isStarred ?? existing.isStarred ?? false
   }
 }
 
@@ -148,7 +154,7 @@ async function withDatabase(handler, res) {
     return await handler(pool)
   } catch (error) {
     console.error('Database operation failed:', error)
-    if (res) {
+    if (res && !res.headersSent) {
       res.status(500).json({ error: 'Database operation failed' })
     }
     throw error
@@ -192,9 +198,10 @@ app.post('/api/features', async (req, res) => {
       .input('upvotes', sql.Int, featureInput.upvotes)
       .input('comments', sql.Int, featureInput.comments)
       .input('rating', sql.Float, featureInput.rating)
+      .input('is_starred', sql.Bit, featureInput.isStarred ? 1 : 0)
       .query(`
-        INSERT INTO dbo.features (id, title, date, icon, status, description, tldr, category, tags, links, image, upvotes, comments, rating)
-        VALUES (@id, @title, @date, @icon, @status, @description, @tldr, @category, @tags, @links, @image, @upvotes, @comments, @rating);
+        INSERT INTO dbo.features (id, title, date, icon, status, description, tldr, category, tags, links, image, upvotes, comments, rating, is_starred)
+        VALUES (@id, @title, @date, @icon, @status, @description, @tldr, @category, @tags, @links, @image, @upvotes, @comments, @rating, @is_starred);
         SELECT * FROM dbo.features WHERE id = @id;
       `), res)
     res.status(201).json(mapDbFeature(result.recordset[0]))
@@ -235,6 +242,7 @@ app.put('/api/features/:id', async (req, res) => {
       .input('upvotes', sql.Int, featureInput.upvotes)
       .input('comments', sql.Int, featureInput.comments)
       .input('rating', sql.Float, featureInput.rating)
+      .input('is_starred', sql.Bit, featureInput.isStarred ? 1 : 0)
       .query(`
         UPDATE dbo.features
         SET title = @title,
@@ -250,6 +258,7 @@ app.put('/api/features/:id', async (req, res) => {
             upvotes = @upvotes,
             comments = @comments,
             rating = @rating,
+            is_starred = @is_starred,
             updated_at = GETDATE()
         WHERE id = @id;
         SELECT * FROM dbo.features WHERE id = @id;
@@ -259,6 +268,59 @@ app.put('/api/features/:id', async (req, res) => {
   } catch (error) {
     if (!res.headersSent) {
       res.status(500).json({ error: 'Failed to update feature' })
+    }
+  }
+})
+
+app.post('/api/features/:id/upvote', async (req, res) => {
+  try {
+    const { id } = req.params
+    const result = await withDatabase((pool) => pool.request()
+      .input('id', sql.NVarChar, id)
+      .query(`
+        UPDATE dbo.features
+        SET upvotes = ISNULL(upvotes, 0) + 1,
+            updated_at = GETDATE()
+        WHERE id = @id;
+        SELECT * FROM dbo.features WHERE id = @id;
+      `), res)
+
+    if (!result.recordset.length) {
+      res.status(404).json({ error: 'Feature not found' })
+      return
+    }
+
+    res.json(mapDbFeature(result.recordset[0]))
+  } catch (error) {
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to upvote feature' })
+    }
+  }
+})
+
+app.post('/api/features/:id/star', async (req, res) => {
+  try {
+    const { id } = req.params
+    const isStarred = Boolean((req.body && req.body.isStarred) ?? true)
+    const result = await withDatabase((pool) => pool.request()
+      .input('id', sql.NVarChar, id)
+      .input('is_starred', sql.Bit, isStarred ? 1 : 0)
+      .query(`
+        UPDATE dbo.features
+        SET is_starred = @is_starred, updated_at = GETDATE()
+        WHERE id = @id;
+        SELECT * FROM dbo.features WHERE id = @id;
+      `), res)
+
+    if (!result.recordset.length) {
+      res.status(404).json({ error: 'Feature not found' })
+      return
+    }
+
+    res.json(mapDbFeature(result.recordset[0]))
+  } catch (error) {
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to update feature star' })
     }
   }
 })
@@ -289,5 +351,7 @@ app.listen(port, () => {
   console.log('  GET    /api/features')
   console.log('  POST   /api/features')
   console.log('  PUT    /api/features/:id')
+  console.log('  POST   /api/features/:id/upvote')
+  console.log('  POST   /api/features/:id/star')
   console.log('  DELETE /api/features/:id')
 })
