@@ -67,11 +67,82 @@ export const FeaturesProvider = ({ children }) => {
   const [features, setFeatures] = useState([])
   const [selectedFeature, setSelectedFeature] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState('all')
 
   // Load features from database on app start
   useEffect(() => {
     loadFeaturesFromDatabase()
   }, [])
+
+  // Helper function to parse date string to Date object for sorting
+  const parseFeatureDate = (dateString) => {
+    // Handle different date formats
+    if (!dateString) return new Date(0) // Default to earliest date if no date
+
+    // Try to parse "Month Day" format (e.g., "August 7th", "September 15th")
+    const monthDayMatch = dateString.match(/^(\w+)\s+(\d+)/)
+    if (monthDayMatch) {
+      const [, monthName, day] = monthDayMatch
+      const currentYear = new Date().getFullYear()
+      const monthMap = {
+        'january': 0, 'february': 1, 'march': 2, 'april': 3,
+        'may': 4, 'june': 5, 'july': 6, 'august': 7,
+        'september': 8, 'october': 9, 'november': 10, 'december': 11
+      }
+      const monthIndex = monthMap[monthName.toLowerCase()]
+      if (monthIndex !== undefined) {
+        return new Date(currentYear, monthIndex, parseInt(day))
+      }
+    }
+
+    // Fallback to Date parsing
+    return new Date(dateString)
+  }
+
+  // Helper function to get month name from date string
+  const getMonthFromDate = (dateString) => {
+    const monthMatch = dateString.match(/^(\w+)/)
+    return monthMatch ? monthMatch[1].toLowerCase() : null
+  }
+
+  // Sort features by date (chronological order)
+  const sortFeaturesByDate = (featuresArray) => {
+    return [...featuresArray].sort((a, b) => {
+      const dateA = parseFeatureDate(a.date)
+      const dateB = parseFeatureDate(b.date)
+      return dateA - dateB
+    })
+  }
+
+  // Filter features by selected month
+  const filterFeaturesByMonth = (featuresArray) => {
+    if (selectedMonth === 'all') return featuresArray
+
+    return featuresArray.filter(feature => {
+      const featureMonth = getMonthFromDate(feature.date)
+      return featureMonth === selectedMonth.toLowerCase()
+    })
+  }
+
+  // Get available months from features
+  const getAvailableMonths = () => {
+    const months = new Set()
+    features.forEach(feature => {
+      const month = getMonthFromDate(feature.date)
+      if (month) months.add(month)
+    })
+    return Array.from(months).sort((a, b) => {
+      const monthOrder = ['january', 'february', 'march', 'april', 'may', 'june',
+                         'july', 'august', 'september', 'october', 'november', 'december']
+      return monthOrder.indexOf(a) - monthOrder.indexOf(b)
+    })
+  }
+
+  // Get filtered and sorted features
+  const getFilteredAndSortedFeatures = () => {
+    const filtered = filterFeaturesByMonth(features)
+    return sortFeaturesByDate(filtered)
+  }
 
   const loadFeaturesFromDatabase = async () => {
     console.log('Loading features from database...')
@@ -184,10 +255,14 @@ export const FeaturesProvider = ({ children }) => {
     selectedFeature,
     setSelectedFeature,
     loading,
+    selectedMonth,
+    setSelectedMonth,
     addFeature,
     updateFeature,
     deleteFeature,
-    refreshFeatures: loadFeaturesFromDatabase
+    refreshFeatures: loadFeaturesFromDatabase,
+    getFilteredAndSortedFeatures,
+    getAvailableMonths
   }
 
   return (

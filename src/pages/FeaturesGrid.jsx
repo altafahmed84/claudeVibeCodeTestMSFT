@@ -2,9 +2,13 @@ import { useState } from 'react'
 import { useFeatures } from '../context/FeaturesContext'
 import FeatureCard from '../components/FeatureCard'
 import FeatureDetailsPanel from '../components/FeatureDetailsPanel'
+import MonthFilter from '../components/MonthFilter'
 
 const FeaturesGrid = () => {
-  const { features, loading } = useFeatures()
+  const { loading, getFilteredAndSortedFeatures } = useFeatures()
+
+  // Get the filtered and sorted features for display
+  const sortedFeatures = getFilteredAndSortedFeatures()
 
   if (loading) {
     return (
@@ -27,9 +31,14 @@ const FeaturesGrid = () => {
           </p>
         </div>
 
+        {/* Month Filter */}
+        <div className="flex justify-center mb-8">
+          <MonthFilter />
+        </div>
+
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature) => (
+          {sortedFeatures.map((feature) => (
             <FeatureCard
               key={feature.id}
               feature={feature}

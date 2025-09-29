@@ -1,8 +1,12 @@
 import { useFeatures } from '../context/FeaturesContext'
 import FeatureDetailsPanel from '../components/FeatureDetailsPanel'
+import MonthFilter from '../components/MonthFilter'
 
 const Timeline = () => {
-  const { features, setSelectedFeature, loading } = useFeatures()
+  const { setSelectedFeature, loading, getFilteredAndSortedFeatures } = useFeatures()
+
+  // Get the filtered and sorted features for display
+  const sortedFeatures = getFilteredAndSortedFeatures()
 
   const handleFeatureClick = (feature) => {
     setSelectedFeature(feature)
@@ -45,11 +49,16 @@ const Timeline = () => {
           </p>
         </div>
 
+        {/* Month Filter */}
+        <div className="flex justify-center mb-8">
+          <MonthFilter />
+        </div>
+
         {/* Timeline Container */}
         <div className="relative">
           <div className="timeline-scroll pb-6">
             <div className="flex space-x-8 min-w-max px-4">
-              {features.map((feature, index) => (
+              {sortedFeatures.map((feature, index) => (
                 <div key={feature.id} className="flex flex-col items-center min-w-[280px]">
                   {/* Timeline Line */}
                   <div className="relative">
