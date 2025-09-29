@@ -27,6 +27,8 @@ const initialFeatures = [
         upvotes: 856,
         comments: 142,
         rating: 4.8,
+        rating_total: 960,
+        rating_count: 200,
         is_starred: 0
     },
     {
@@ -42,6 +44,8 @@ const initialFeatures = [
         upvotes: 324,
         comments: 45,
         rating: 4.6,
+        rating_total: 552,
+        rating_count: 120,
         is_starred: 0
     },
     {
@@ -57,6 +61,8 @@ const initialFeatures = [
         upvotes: 267,
         comments: 38,
         rating: 4.4,
+        rating_total: 418,
+        rating_count: 95,
         is_starred: 0
     },
     {
@@ -72,6 +78,8 @@ const initialFeatures = [
         upvotes: 247,
         comments: 23,
         rating: 4.7,
+        rating_total: 705,
+        rating_count: 150,
         is_starred: 0
     },
     {
@@ -87,6 +95,8 @@ const initialFeatures = [
         upvotes: 189,
         comments: 31,
         rating: 4.3,
+        rating_total: 387,
+        rating_count: 90,
         is_starred: 0
     },
     {
@@ -102,9 +112,57 @@ const initialFeatures = [
         upvotes: 134,
         comments: 19,
         rating: 4.5,
+        rating_total: 495,
+        rating_count: 110,
         is_starred: 0
     }
 ];
+
+
+const transformRecordToFeature = (record) => {
+    if (!record) {
+        return null;
+    }
+
+    const rawRatingCount = Object.prototype.hasOwnProperty.call(record, 'rating_count') ? record.rating_count : (record.ratingCount ?? 0);
+    const rawRatingTotal = Object.prototype.hasOwnProperty.call(record, 'rating_total') ? record.rating_total : (record.ratingTotal ?? 0);
+    const ratingCount = Number.isFinite(rawRatingCount) ? rawRatingCount : Number(rawRatingCount) || 0;
+    const ratingTotal = Number.isFinite(rawRatingTotal) ? rawRatingTotal : Number(rawRatingTotal) || 0;
+    const baseRating = Number.isFinite(record.rating) ? record.rating : Number(record.rating) || 0;
+    const averageRating = ratingCount > 0 ? ratingTotal / ratingCount : baseRating;
+
+    const parseMaybeJson = (value) => {
+        if (!value) return [];
+        if (Array.isArray(value)) return value;
+        try {
+            return JSON.parse(value);
+        } catch {
+            return [];
+        }
+    };
+
+    return {
+        id: record.id,
+        title: record.title,
+        date: record.date,
+        icon: record.icon,
+        status: record.status,
+        description: record.description,
+        tldr: record.tldr || '',
+        category: record.category || '',
+        tags: parseMaybeJson(record.tags),
+        links: parseMaybeJson(record.links),
+        image: record.image,
+        upvotes: record.upvotes || 0,
+        comments: record.comments || 0,
+        rating: averageRating || 0,
+        ratingCount,
+        ratingTotal,
+        isStarred: Boolean(record.is_starred ?? record.isStarred),
+        created_at: record.created_at,
+        updated_at: record.updated_at
+    };
+};
 
 // Initialize database table and seed with hardcoded features
 async function initializeDatabase() {
@@ -129,10 +187,35 @@ async function initializeDatabase() {
                 upvotes INT NOT NULL DEFAULT 0,
                 comments INT NOT NULL DEFAULT 0,
                 rating FLOAT NULL,
+                rating_total FLOAT NOT NULL DEFAULT 0,
+                rating_count INT NOT NULL DEFAULT 0,
                 is_starred BIT NOT NULL DEFAULT 0,
                 created_at DATETIME2 DEFAULT GETDATE(),
                 updated_at DATETIME2 DEFAULT GETDATE()
             )
+        `);
+
+        // Ensure rating aggregation columns exist before seeding
+        await pool.request().query(`
+            IF COL_LENGTH('features', 'rating_total') IS NULL
+                ALTER TABLE features ADD rating_total FLOAT NOT NULL DEFAULT 0;
+            IF COL_LENGTH('features', 'rating_count') IS NULL
+                ALTER TABLE features ADD rating_count INT NOT NULL DEFAULT 0;
+        `);
+
+        await pool.request().query(`
+            UPDATE features
+            SET
+                rating_total = CASE
+                    WHEN (rating_total IS NULL OR rating_total = 0) AND (rating IS NOT NULL AND rating > 0) THEN rating
+                    WHEN rating_total IS NULL THEN 0
+                    ELSE rating_total
+                END,
+                rating_count = CASE
+                    WHEN (rating_count IS NULL OR rating_count = 0) AND (rating IS NOT NULL AND rating > 0) THEN 1
+                    WHEN rating_count IS NULL THEN 0
+                    ELSE rating_count
+                END;
         `);
 
         // Seed database with hardcoded features (update if they exist, insert if they don't)
@@ -150,6 +233,8 @@ async function initializeDatabase() {
                 .input('upvotes', sql.Int, feature.upvotes)
                 .input('comments', sql.Int, feature.comments)
                 .input('rating', sql.Float, feature.rating)
+                .input('rating_total', sql.Float, feature.rating_total)
+                .input('rating_count', sql.Int, feature.rating_count)
                 .input('is_starred', sql.Bit, feature.is_starred)
                 .query(`
                     IF EXISTS (SELECT 1 FROM features WHERE id = @id)
@@ -157,12 +242,13 @@ async function initializeDatabase() {
                         SET title = @title, date = @date, icon = @icon,
                             status = @status, description = @description, tldr = @tldr,
                             category = @category, tags = @tags, upvotes = @upvotes,
-                            comments = @comments, rating = @rating, is_starred = @is_starred,
+                            comments = @comments, rating = @rating, rating_total = @rating_total,
+                            rating_count = @rating_count, is_starred = @is_starred,
                             updated_at = GETDATE()
                         WHERE id = @id
                     ELSE
-                        INSERT INTO features (id, title, date, icon, status, description, tldr, category, tags, upvotes, comments, rating, is_starred)
-                        VALUES (@id, @title, @date, @icon, @status, @description, @tldr, @category, @tags, @upvotes, @comments, @rating, @is_starred)
+                        INSERT INTO features (id, title, date, icon, status, description, tldr, category, tags, upvotes, comments, rating, rating_total, rating_count, is_starred)
+                        VALUES (@id, @title, @date, @icon, @status, @description, @tldr, @category, @tags, @upvotes, @comments, @rating, @rating_total, @rating_count, @is_starred)
                 `);
         }
 
@@ -209,25 +295,9 @@ module.exports = async function (context, req) {
             await pool.close();
 
             // Transform database results to match frontend expectations
-            const features = result.recordset.map(record => ({
-                id: record.id,
-                title: record.title,
-                date: record.date,
-                icon: record.icon,
-                status: record.status,
-                description: record.description,
-                tldr: record.tldr || '',
-                category: record.category || '',
-                tags: record.tags ? JSON.parse(record.tags) : [],
-                links: record.links ? JSON.parse(record.links) : [],
-                image: record.image,
-                upvotes: record.upvotes || 0,
-                comments: record.comments || 0,
-                rating: record.rating || 0,
-                isStarred: Boolean(record.is_starred),
-                created_at: record.created_at,
-                updated_at: record.updated_at
-            }));
+            const features = result.recordset
+                .map(transformRecordToFeature)
+                .filter(Boolean);
 
             context.res.status = 200;
             context.res.body = features;
@@ -253,33 +323,17 @@ module.exports = async function (context, req) {
                 .input('upvotes', sql.Int, upvotes || 0)
                 .input('comments', sql.Int, comments || 0)
                 .input('rating', sql.Float, rating || 0)
+                .input('rating_total', sql.Float, rating || 0)
+                .input('rating_count', sql.Int, rating ? 1 : 0)
                 .input('is_starred', sql.Bit, isStarred ? 1 : 0)
                 .query(`
-                    INSERT INTO features (id, title, date, icon, status, description, tldr, category, tags, links, image, upvotes, comments, rating, is_starred)
-                    VALUES (@id, @title, @date, @icon, @status, @description, @tldr, @category, @tags, @links, @image, @upvotes, @comments, @rating, @is_starred);
+                    INSERT INTO features (id, title, date, icon, status, description, tldr, category, tags, links, image, upvotes, comments, rating, rating_total, rating_count, is_starred)
+                    VALUES (@id, @title, @date, @icon, @status, @description, @tldr, @category, @tags, @links, @image, @upvotes, @comments, @rating, @rating_total, @rating_count, @is_starred);
                     SELECT * FROM features WHERE id = @id;
                 `);
             await pool.close();
 
-            const newFeature = {
-                id: result.recordset[0].id,
-                title: result.recordset[0].title,
-                date: result.recordset[0].date,
-                icon: result.recordset[0].icon,
-                status: result.recordset[0].status,
-                description: result.recordset[0].description,
-                tldr: result.recordset[0].tldr || '',
-                category: result.recordset[0].category || '',
-                tags: result.recordset[0].tags ? JSON.parse(result.recordset[0].tags) : [],
-                links: result.recordset[0].links ? JSON.parse(result.recordset[0].links) : [],
-                image: result.recordset[0].image,
-                upvotes: result.recordset[0].upvotes || 0,
-                comments: result.recordset[0].comments || 0,
-                rating: result.recordset[0].rating || 0,
-                isStarred: Boolean(result.recordset[0].is_starred),
-                created_at: result.recordset[0].created_at,
-                updated_at: result.recordset[0].updated_at
-            };
+            const newFeature = transformRecordToFeature(result.recordset[0]);
 
             context.res.status = 201;
             context.res.body = newFeature;
@@ -299,25 +353,7 @@ module.exports = async function (context, req) {
                 context.res.status = 404;
                 context.res.body = { error: 'Feature not found' };
             } else {
-                const updatedFeature = {
-                    id: result.recordset[0].id,
-                    title: result.recordset[0].title,
-                    date: result.recordset[0].date,
-                    icon: result.recordset[0].icon,
-                    status: result.recordset[0].status,
-                    description: result.recordset[0].description,
-                    tldr: result.recordset[0].tldr || '',
-                    category: result.recordset[0].category || '',
-                    tags: result.recordset[0].tags ? JSON.parse(result.recordset[0].tags) : [],
-                    links: result.recordset[0].links ? JSON.parse(result.recordset[0].links) : [],
-                    image: result.recordset[0].image,
-                    upvotes: result.recordset[0].upvotes || 0,
-                    comments: result.recordset[0].comments || 0,
-                    rating: result.recordset[0].rating || 0,
-                    isStarred: Boolean(result.recordset[0].is_starred),
-                    created_at: result.recordset[0].created_at,
-                    updated_at: result.recordset[0].updated_at
-                };
+                const updatedFeature = transformRecordToFeature(result.recordset[0]);
                 context.res.status = 200;
                 context.res.body = updatedFeature;
             }
@@ -339,33 +375,88 @@ module.exports = async function (context, req) {
                 context.res.status = 404;
                 context.res.body = { error: 'Feature not found' };
             } else {
-                const updatedFeature = {
-                    id: result.recordset[0].id,
-                    title: result.recordset[0].title,
-                    date: result.recordset[0].date,
-                    icon: result.recordset[0].icon,
-                    status: result.recordset[0].status,
-                    description: result.recordset[0].description,
-                    tldr: result.recordset[0].tldr || '',
-                    category: result.recordset[0].category || '',
-                    tags: result.recordset[0].tags ? JSON.parse(result.recordset[0].tags) : [],
-                    links: result.recordset[0].links ? JSON.parse(result.recordset[0].links) : [],
-                    image: result.recordset[0].image,
-                    upvotes: result.recordset[0].upvotes || 0,
-                    comments: result.recordset[0].comments || 0,
-                    rating: result.recordset[0].rating || 0,
-                    isStarred: Boolean(result.recordset[0].is_starred),
-                    created_at: result.recordset[0].created_at,
-                    updated_at: result.recordset[0].updated_at
-                };
+                const updatedFeature = transformRecordToFeature(result.recordset[0]);
                 context.res.status = 200;
                 context.res.body = updatedFeature;
             }
 
+        } else if (method === 'PUT' && id && action === 'rating') {
+            // Handle rating submission
+            const { rating, previousRating = 0 } = req.body || {};
+            const ratingValue = Number(rating);
+            const previousValue = Number(previousRating);
+
+            if (!Number.isFinite(ratingValue) || ratingValue < 1 || ratingValue > 5) {
+                context.res.status = 400;
+                context.res.body = { error: 'Rating must be between 1 and 5' };
+                return;
+            }
+
+            const normalizedPrevious = Number.isFinite(previousValue) && previousValue >= 1 && previousValue <= 5
+                ? previousValue
+                : 0;
+
+            const pool = await sql.connect(config);
+            const existing = await pool.request()
+                .input('id', sql.NVarChar, id)
+                .query('SELECT rating_total, rating_count FROM features WHERE id = @id;');
+
+            if (!existing.recordset.length) {
+                await pool.close();
+                context.res.status = 404;
+                context.res.body = { error: 'Feature not found' };
+                return;
+            }
+
+            let ratingTotal = Number(existing.recordset[0].rating_total || 0);
+            let ratingCount = Number(existing.recordset[0].rating_count || 0);
+
+            if (normalizedPrevious > 0) {
+                ratingTotal = ratingTotal - normalizedPrevious + ratingValue;
+                if (ratingCount <= 0) {
+                    ratingCount = 1;
+                }
+            } else {
+                ratingTotal += ratingValue;
+                ratingCount += 1;
+            }
+
+            ratingTotal = Math.max(0, ratingTotal);
+            ratingCount = Math.max(0, ratingCount);
+
+            const average = ratingCount > 0 ? ratingTotal / ratingCount : 0;
+
+            await pool.request()
+                .input('id', sql.NVarChar, id)
+                .input('rating_total', sql.Float, ratingTotal)
+                .input('rating_count', sql.Int, ratingCount)
+                .input('rating', sql.Float, average)
+                .query(`
+                    UPDATE features
+                    SET rating_total = @rating_total,
+                        rating_count = @rating_count,
+                        rating = @rating,
+                        updated_at = GETDATE()
+                    WHERE id = @id;
+                `);
+
+            const updated = await pool.request()
+                .input('id', sql.NVarChar, id)
+                .query('SELECT * FROM features WHERE id = @id;');
+            await pool.close();
+
+            const updatedFeature = transformRecordToFeature(updated.recordset[0]);
+            context.res.status = 200;
+            context.res.body = updatedFeature;
+
         } else if (method === 'PUT' && id) {
             // Update feature
-            const { title, date, icon, status, description, tldr, category, tags, links, image, upvotes, comments, rating, isStarred } = req.body;
-
+            const normalizeNumeric = (value) => {
+                const parsed = Number(value);
+                return Number.isFinite(parsed) ? parsed : undefined;
+            };
+            const ratingTotalInput = normalizeNumeric(req.body?.rating_total) ?? normalizeNumeric(req.body?.ratingTotal);
+            const ratingCountInput = normalizeNumeric(req.body?.rating_count) ?? normalizeNumeric(req.body?.ratingCount);
             const pool = await sql.connect(config);
             const result = await pool.request()
                 .input('id', sql.NVarChar, id)
@@ -382,13 +473,16 @@ module.exports = async function (context, req) {
                 .input('upvotes', sql.Int, upvotes || 0)
                 .input('comments', sql.Int, comments || 0)
                 .input('rating', sql.Float, rating || 0)
+                .input('rating_total', sql.Float, ratingTotalInput ?? (rating || 0))
+                .input('rating_count', sql.Int, ratingCountInput ?? (rating ? 1 : 0))
                 .input('is_starred', sql.Bit, isStarred ? 1 : 0)
                 .query(`
                     UPDATE features
                     SET title = @title, date = @date, icon = @icon, status = @status,
                         description = @description, tldr = @tldr, category = @category,
                         tags = @tags, links = @links, image = @image, upvotes = @upvotes,
-                        comments = @comments, rating = @rating, is_starred = @is_starred,
+                        comments = @comments, rating = @rating, rating_total = @rating_total,
+                        rating_count = @rating_count, is_starred = @is_starred,
                         updated_at = GETDATE()
                     WHERE id = @id;
                     SELECT * FROM features WHERE id = @id;
@@ -399,25 +493,7 @@ module.exports = async function (context, req) {
                 context.res.status = 404;
                 context.res.body = { error: 'Feature not found' };
             } else {
-                const updatedFeature = {
-                    id: result.recordset[0].id,
-                    title: result.recordset[0].title,
-                    date: result.recordset[0].date,
-                    icon: result.recordset[0].icon,
-                    status: result.recordset[0].status,
-                    description: result.recordset[0].description,
-                    tldr: result.recordset[0].tldr || '',
-                    category: result.recordset[0].category || '',
-                    tags: result.recordset[0].tags ? JSON.parse(result.recordset[0].tags) : [],
-                    links: result.recordset[0].links ? JSON.parse(result.recordset[0].links) : [],
-                    image: result.recordset[0].image,
-                    upvotes: result.recordset[0].upvotes || 0,
-                    comments: result.recordset[0].comments || 0,
-                    rating: result.recordset[0].rating || 0,
-                    isStarred: Boolean(result.recordset[0].is_starred),
-                    created_at: result.recordset[0].created_at,
-                    updated_at: result.recordset[0].updated_at
-                };
+                const updatedFeature = transformRecordToFeature(result.recordset[0]);
                 context.res.status = 200;
                 context.res.body = updatedFeature;
             }

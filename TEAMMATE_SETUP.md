@@ -1,10 +1,97 @@
 # Team Setup Guide - Azure Static Web Apps Deployment
 
-This guide will help your teammate set up their own Azure environment to deploy this application using the existing GitHub Actions workflow.
+This guide provides **two options** for your teammate to set up their own Azure environment to deploy this application.
 
-## Overview
+## 🚀 Option 1: Automated Infrastructure Creation (Recommended)
 
-The GitHub Actions workflow is configured to deploy to any Azure Static Web App using a deployment token stored as a repository secret. Each team member can deploy to their own Azure environment by following these steps.
+Use our GitHub Actions workflow to automatically create all Azure resources and deploy the application.
+
+## 🛠️ Option 2: Manual Infrastructure Creation
+
+Set up Azure resources manually using Azure CLI commands.
+
+---
+
+# Option 1: Automated Setup (Recommended)
+
+This approach uses GitHub Actions to automatically create all Azure resources and deploy the application.
+
+## Prerequisites
+
+- Azure account with active subscription
+- Access to this GitHub repository (fork it first)
+- Basic knowledge of GitHub Actions
+
+## Step-by-Step Automated Setup
+
+### 1. Create Azure Service Principal
+
+Your teammate needs to create a service principal for GitHub Actions to access Azure:
+
+```bash
+# Login to Azure
+az login
+
+# Create service principal (replace with your subscription ID)
+az ad sp create-for-rbac \
+  --name "github-actions-copilot" \
+  --role contributor \
+  --scopes /subscriptions/YOUR_SUBSCRIPTION_ID \
+  --sdk-auth
+```
+
+**Save the JSON output** - you'll need it in the next step.
+
+### 2. Configure GitHub Repository
+
+#### 2.1 Fork the Repository
+1. Fork this repository to your GitHub account
+2. Clone your fork locally
+
+#### 2.2 Add Azure Credentials Secret
+1. Go to your forked repository on GitHub
+2. Click **Settings** tab
+3. Go to **Secrets and variables** → **Actions**
+4. Click **New repository secret**
+5. Name: `AZURE_CREDENTIALS`
+6. Value: Paste the entire JSON output from step 1
+7. Click **Add secret**
+
+### 3. Run the Infrastructure Workflow
+
+#### 3.1 Trigger the Workflow
+1. Go to the **Actions** tab in your GitHub repository
+2. Click on **Azure Infrastructure and Deployment** workflow
+3. Click **Run workflow**
+4. Fill in the parameters:
+   - **Environment name**: Your name or `dev` (e.g., `john`, `staging`)
+   - **Azure region**: Choose your preferred region
+   - **SQL admin password**: Create a strong password (min 8 chars, uppercase, lowercase, number, special char)
+   - **Deploy application**: Keep checked to deploy immediately
+
+#### 3.2 Monitor the Workflow
+1. Watch the workflow run in the Actions tab
+2. It will create all Azure resources automatically
+3. The application will be deployed automatically
+4. Get your application URL from the workflow output
+
+### 4. Access Your Application
+
+After the workflow completes successfully:
+1. Check the workflow logs for your application URL
+2. Visit the URL to see your deployed application
+3. Test the features - they should load automatically
+
+### 5. Set Up Continuous Deployment (Optional)
+
+To enable automatic deployments on future code changes:
+1. The workflow will provide a deployment token
+2. Add it as a repository secret named `AZURE_STATIC_WEB_APPS_API_TOKEN`
+3. Now every push to main will trigger automatic deployment
+
+---
+
+# Option 2: Manual Setup
 
 ## Prerequisites
 

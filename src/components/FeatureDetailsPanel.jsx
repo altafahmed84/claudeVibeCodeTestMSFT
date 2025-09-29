@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useFeatures } from '../context/FeaturesContext'
-import { X, Edit3, ExternalLink } from 'lucide-react'
+import { X, Edit3, ExternalLink, Star, ThumbsUp, MessageCircle } from 'lucide-react'
 import AdminForm from './AdminForm'
 
 const getStatusColor = (status) => {
@@ -20,8 +20,9 @@ const getStatusColor = (status) => {
 }
 
 const FeatureDetailsPanel = () => {
-  const { features, selectedFeature, setSelectedFeature, upvoteFeature, toggleStarFeature } = useFeatures()
+  const { features, selectedFeature, setSelectedFeature, upvoteFeature, rateFeature } = useFeatures()
   const [showEditor, setShowEditor] = useState(false)
+  const [hoveredRating, setHoveredRating] = useState(0)
 
   useEffect(() => {
     if (!selectedFeature) return
@@ -31,12 +32,23 @@ const FeatureDetailsPanel = () => {
     }
   }, [features, selectedFeature, setSelectedFeature])
 
+  useEffect(() => {
+    setHoveredRating(0)
+  }, [selectedFeature?.id])
+
   if (!selectedFeature) return null
 
   const handleClose = () => {
     setShowEditor(false)
     setSelectedFeature(null)
   }
+
+  const averageRating = Number.isFinite(selectedFeature.rating) ? selectedFeature.rating : Number(selectedFeature.rating || 0)
+  const ratingCount = Number.isFinite(selectedFeature.ratingCount) ? selectedFeature.ratingCount : Number(selectedFeature.ratingCount || 0)
+  const userRating = Number.isFinite(selectedFeature.userRating) ? selectedFeature.userRating : Number(selectedFeature.userRating || 0)
+  const ratingValues = [1, 2, 3, 4, 5]
+  const activeRating = hoveredRating || (userRating > 0 ? userRating : Math.round(averageRating))
+  const displayedAverage = averageRating > 0 ? averageRating.toFixed(1) : '0.0'
 
   const handleEditorClose = () => {
     setShowEditor(false)
@@ -46,7 +58,7 @@ const FeatureDetailsPanel = () => {
 
   if (showEditor) {
     return (
-      <div className="fixed right-0 top-0 bottom-0 w-full md:w-[420px] lg:w-[480px] bg-primary-surface border-l border-primary-surfaceElevated shadow-2xl z-40 overflow-y-auto">
+      <div className="fixed right-0 top-20 bottom-0 w-full md:w-[420px] lg:w-[480px] bg-primary-surface border-l border-primary-surfaceElevated shadow-2xl z-40 overflow-y-auto">
         <div className="h-full overflow-y-auto">
           <AdminForm
             feature={selectedFeature}
@@ -61,7 +73,7 @@ const FeatureDetailsPanel = () => {
 
   return (
     <>
-      <div className="fixed right-0 top-0 bottom-0 w-full md:w-[420px] lg:w-[480px] bg-primary-surface border-l border-primary-surfaceElevated shadow-2xl z-40 overflow-y-auto">
+      <div className="fixed right-0 top-20 bottom-0 w-full md:w-[420px] lg:w-[480px] bg-primary-surface border-l border-primary-surfaceElevated shadow-2xl z-40 overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-5 border-b border-primary-surfaceElevated">
           <div className="flex items-center space-x-3">
             <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary-background text-2xl">
@@ -117,30 +129,49 @@ const FeatureDetailsPanel = () => {
                 <span>{selectedFeature.category}</span>
               </div>
             )}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => upvoteFeature(selectedFeature.id)}
                   className="flex items-center gap-2 px-3 py-2 bg-primary-surfaceElevated hover:bg-primary-backgroundSecondary border border-primary-surfaceElevated rounded-lg transition-colors"
                 >
-                  <span className="text-green-500">👍</span>
+                  <ThumbsUp className="w-4 h-4 text-green-400" />
                   <span className="text-sm text-text-primary">{selectedFeature.upvotes || 0}</span>
                 </button>
                 <div className="flex items-center gap-2 text-sm text-text-secondary">
-                  <span>💬 {selectedFeature.comments || 0}</span>
+                  <MessageCircle className="w-4 h-4" />
+                  <span>{selectedFeature.comments || 0}</span>
                 </div>
               </div>
-              <button
-                onClick={() => toggleStarFeature(selectedFeature.id, !selectedFeature.isStarred)}
-                className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors ${
-                  selectedFeature.isStarred
-                    ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30'
-                    : 'bg-primary-surfaceElevated border-primary-surfaceElevated text-text-secondary hover:bg-primary-backgroundSecondary hover:text-yellow-400'
-                }`}
-              >
-                <span className={selectedFeature.isStarred ? 'text-yellow-400' : 'text-gray-400'}>⭐</span>
-                <span className="text-sm font-medium">{selectedFeature.rating || 0}</span>
-              </button>
+              <div className="flex flex-col items-end gap-1 text-right">
+                <div
+                  className="flex items-center gap-1"
+                  onMouseLeave={() => setHoveredRating(0)}
+                >
+                  {ratingValues.map(value => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => rateFeature(selectedFeature.id, value)}
+                      onMouseEnter={() => setHoveredRating(value)}
+                      className="p-1 transition-transform hover:scale-110"
+                      aria-label={`Rate ${value} star${value > 1 ? 's' : ''}`}
+                    >
+                      <Star
+                        className="w-5 h-5"
+                        fill={value <= activeRating ? '#fbbf24' : 'none'}
+                        stroke={value <= activeRating ? '#fbbf24' : 'currentColor'}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <div className="text-xs text-text-secondary">
+                  <span className="font-medium text-text-primary">{displayedAverage}</span> average · {ratingCount} rating{ratingCount === 1 ? '' : 's'}
+                </div>
+                <div className="text-xs text-text-muted">
+                  {userRating ? `You rated this ${userRating}/5` : 'Select a star to rate'}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -207,3 +238,4 @@ const FeatureDetailsPanel = () => {
 }
 
 export default FeatureDetailsPanel
+
