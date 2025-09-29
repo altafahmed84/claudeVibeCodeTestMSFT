@@ -116,6 +116,9 @@ export const FeaturesProvider = ({ children }) => {
   const [selectedFeature, setSelectedFeature] = useState(null)
   const [loading, setLoading] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategories, setSelectedCategories] = useState([])
+  const [selectedTags, setSelectedTags] = useState([])
 
   // Load features from database on app start
   useEffect(() => {
@@ -172,6 +175,103 @@ export const FeaturesProvider = ({ children }) => {
     })
   }
 
+  const normalizeFilterValue = (value) => {
+    if (value === null || value === undefined) {
+      return ''
+    }
+    return String(value).trim().toLowerCase()
+  }
+
+  const filterFeaturesByCategories = (featuresArray) => {
+    if (!selectedCategories.length) return featuresArray
+
+    return featuresArray.filter(feature => {
+      if (!feature.category) return false
+      const normalizedCategory = normalizeFilterValue(feature.category)
+      return selectedCategories.some(category => normalizeFilterValue(category) === normalizedCategory)
+    })
+  }
+
+  const filterFeaturesByTags = (featuresArray) => {
+    if (!selectedTags.length) return featuresArray
+
+    return featuresArray.filter(feature => {
+      if (!Array.isArray(feature.tags) || feature.tags.length === 0) return false
+      const featureTags = feature.tags.map(tag => normalizeFilterValue(tag))
+      return selectedTags.every(tag => featureTags.includes(normalizeFilterValue(tag)))
+    })
+  }
+
+  const filterFeaturesBySearch = (featuresArray) => {
+    const term = normalizeFilterValue(searchTerm)
+    if (!term) return featuresArray
+
+    return featuresArray.filter(feature => {
+      const searchableFields = [
+        feature.title,
+        feature.tldr,
+        feature.description,
+        feature.category,
+        ...(Array.isArray(feature.tags) ? feature.tags : [])
+      ]
+
+      const haystack = searchableFields
+        .filter(Boolean)
+        .map(value => normalizeFilterValue(value))
+        .join(' ')
+
+      return haystack.includes(term)
+    })
+  }
+
+  const getAvailableCategories = () => {
+    const categories = new Set()
+    features.forEach(feature => {
+      if (feature.category) {
+        categories.add(feature.category)
+      }
+    })
+    return Array.from(categories).sort((a, b) => a.localeCompare(b))
+  }
+
+  const getAvailableTags = () => {
+    const tags = new Set()
+    features.forEach(feature => {
+      if (Array.isArray(feature.tags)) {
+        feature.tags.forEach(tag => tags.add(tag))
+      }
+    })
+    return Array.from(tags).sort((a, b) => a.localeCompare(b))
+  }
+
+  const toggleCategory = (category) => {
+    setSelectedCategories(prev => {
+      const normalizedCategory = normalizeFilterValue(category)
+      const exists = prev.some(item => normalizeFilterValue(item) === normalizedCategory)
+      if (exists) {
+        return prev.filter(item => normalizeFilterValue(item) !== normalizedCategory)
+      }
+      return [...prev, category]
+    })
+  }
+
+  const toggleTag = (tag) => {
+    setSelectedTags(prev => {
+      const normalizedTag = normalizeFilterValue(tag)
+      const exists = prev.some(item => normalizeFilterValue(item) === normalizedTag)
+      if (exists) {
+        return prev.filter(item => normalizeFilterValue(item) !== normalizedTag)
+      }
+      return [...prev, tag]
+    })
+  }
+
+  const clearFilters = () => {
+    setSearchTerm('')
+    setSelectedCategories([])
+    setSelectedTags([])
+  }
+
   // Get available months from features
   const getAvailableMonths = () => {
     const months = new Set()
@@ -188,8 +288,11 @@ export const FeaturesProvider = ({ children }) => {
 
   // Get filtered and sorted features
   const getFilteredAndSortedFeatures = () => {
-    const filtered = filterFeaturesByMonth(features)
-    return sortFeaturesByDate(filtered)
+    const filteredByMonth = filterFeaturesByMonth(features)
+    const filteredByCategory = filterFeaturesByCategories(filteredByMonth)
+    const filteredByTag = filterFeaturesByTags(filteredByCategory)
+    const filteredBySearch = filterFeaturesBySearch(filteredByTag)
+    return sortFeaturesByDate(filteredBySearch)
   }
 
   const loadFeaturesFromDatabase = async () => {
@@ -340,13 +443,22 @@ export const FeaturesProvider = ({ children }) => {
     loading,
     selectedMonth,
     setSelectedMonth,
+    searchTerm,
+    setSearchTerm,
+    selectedCategories,
+    toggleCategory,
+    selectedTags,
+    toggleTag,
+    clearFilters,
     addFeature,
     updateFeature,
     deleteFeature,
     upvoteFeature,
     refreshFeatures: loadFeaturesFromDatabase,
     getFilteredAndSortedFeatures,
-    getAvailableMonths
+    getAvailableMonths,
+    getAvailableCategories,
+    getAvailableTags
   }
 
   return (

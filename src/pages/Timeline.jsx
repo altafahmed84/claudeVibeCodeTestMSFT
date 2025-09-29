@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import { useFeatures } from '../context/FeaturesContext'
 import FeatureDetailsPanel from '../components/FeatureDetailsPanel'
-import MonthFilter from '../components/MonthFilter'
+import FiltersPanel from '../components/FiltersPanel'
 
 const Timeline = () => {
   const { setSelectedFeature, loading, getFilteredAndSortedFeatures, upvoteFeature } = useFeatures()
@@ -83,7 +83,7 @@ const Timeline = () => {
         {/* Filter Panel - Collapsible */}
         {showFilter && (
           <div className="px-6 py-4 border-b border-primary-surfaceElevated bg-primary-backgroundSecondary">
-            <MonthFilter />
+            <FiltersPanel />
           </div>
         )}
 
@@ -146,6 +146,22 @@ const Timeline = () => {
                           {feature.tldr || feature.description}
                         </p>
 
+                        {Array.isArray(feature.tags) && feature.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {feature.tags.slice(0, 3).map((tag) => (
+                              <span
+                                key={tag}
+                                className="px-2 py-0.5 text-[10px] rounded-full bg-primary-backgroundSecondary text-text-secondary border border-primary-surfaceElevated"
+                              >
+                                #{tag}
+                              </span>
+                            ))}
+                            {feature.tags.length > 3 && (
+                              <span className="text-[10px] text-text-muted">+{feature.tags.length - 3}</span>
+                            )}
+                          </div>
+                        )}
+
                         {/* Engagement Stats */}
                         <div className="flex items-center justify-between text-xs text-text-muted">
                           <div className="flex items-center space-x-3">
@@ -187,3 +203,4 @@ const Timeline = () => {
 }
 
 export default Timeline
+
