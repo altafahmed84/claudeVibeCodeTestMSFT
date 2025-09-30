@@ -17,7 +17,7 @@ const initialFeatures = [
     id: uuidv4(),
     title: 'GPT-5',
     date: 'August 7th',
-    icon: '🧠',
+    icon: '🤖',
     status: 'General availability',
     description: 'Advanced language model capabilities with enhanced reasoning and improved safety features',
     tldr: 'Next-gen AI model with enhanced reasoning and safety',
@@ -55,7 +55,7 @@ const initialFeatures = [
     id: uuidv4(),
     title: 'Copilot Studio Value in M365 Copilot',
     date: 'September 1st',
-    icon: '🛠️',
+    icon: '🧩',
     status: 'Released',
     description: 'Enhanced value delivery through Copilot Studio integration with Microsoft 365',
     tldr: 'Build custom AI agents with no-code Copilot Studio',
@@ -112,7 +112,7 @@ const initialFeatures = [
     id: uuidv4(),
     title: 'Role-based AI Solutions in M365 Copilot',
     date: 'October 10th',
-    icon: '🧑‍💼',
+    icon: '🎯',
     status: 'Released',
     description: 'Specialized AI solutions tailored for different organizational roles and workflows',
     tldr: 'Customized AI solutions for specific job roles',
@@ -128,6 +128,7 @@ const initialFeatures = [
     isStarred: false
   }
 ]
+
 
 
 
@@ -160,6 +161,14 @@ const normalizeFeature = (feature) => {
 
   const parsedTags = parseJsonArray(feature.tags)
   const parsedLinks = parseJsonArray(feature.links)
+
+  const sanitizedIcon = (() => {
+    if (typeof feature.icon !== 'string') return '🤖'
+    const trimmed = feature.icon.trim()
+    if (!trimmed) return '🤖'
+    if (/^\?+$/.test(trimmed)) return '🤖'
+    return trimmed
+  })()
 
   const rawRatingCount = feature.ratingCount ?? feature.rating_count
   const rawRatingTotal = feature.ratingTotal ?? feature.rating_total
@@ -194,6 +203,7 @@ const normalizeFeature = (feature) => {
 
   return {
     ...feature,
+    icon: sanitizedIcon,
     tags: parsedTags,
     links: parsedLinks,
     upvotes: Number.isFinite(feature.upvotes) ? feature.upvotes : Number(feature.upvotes || 0),

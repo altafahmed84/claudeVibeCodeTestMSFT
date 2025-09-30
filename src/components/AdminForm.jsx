@@ -13,7 +13,7 @@ const AdminForm = ({ feature = null, onClose, mode = 'create', variant = 'modal'
     category: feature?.category || 'Copilot',
     status: feature?.status || 'Coming Soon',
     date: feature?.date || '',
-    icon: feature?.icon || '??',
+    icon: feature?.icon || '🤖',
     tags: feature?.tags || [],
     links: feature?.links || [],
     image: feature?.image || null
@@ -31,7 +31,7 @@ const AdminForm = ({ feature = null, onClose, mode = 'create', variant = 'modal'
 
   const categories = ['Copilot', 'AI Agents', 'Teams', 'Analytics']
   const statuses = ['Released', 'Coming Soon', 'In Development', 'Beta', 'Preview', 'General availability']
-  const icons = ['??', '??', '???', '??', '??', '?????', '??', '??', '??', '??', '???', '??', '??', '??']
+  const icons = ['🤖', '🧠', '📊', '💡', '🧩', '🚀', '💬', '🤝', '🎯', '🛠️', '📈', '⚙️', '🗂️', '🌐']
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
   const monthIndexMap = monthNames.reduce((acc, name, index) => { acc[name.toLowerCase()] = index; return acc }, {})
@@ -294,7 +294,7 @@ const AdminForm = ({ feature = null, onClose, mode = 'create', variant = 'modal'
           onClick={onClose}
           className="text-text-secondary hover:text-text-primary transition-colors"
         >
-          �
+          ×
         </button>
       </div>
     </div>
@@ -571,7 +571,7 @@ const AdminForm = ({ feature = null, onClose, mode = 'create', variant = 'modal'
               onClick={() => removeTag(tag)}
               className="ml-2 text-text-accent hover:text-red-400"
             >
-              �
+              ×
             </button>
           </span>
         ))}

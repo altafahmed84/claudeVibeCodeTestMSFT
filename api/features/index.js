@@ -18,7 +18,7 @@ const initialFeatures = [
         id: 'seed-gpt5',
         title: "GPT-5",
         date: "August 7th",
-        icon: "🧠",
+        icon: "🤖",
         status: "General availability",
         description: "Advanced language model capabilities with enhanced reasoning and improved safety features",
         tldr: "Next-gen AI model with enhanced reasoning and safety",
@@ -52,7 +52,7 @@ const initialFeatures = [
         id: 'seed-copilot-studio-m365',
         title: "Copilot Studio Value in M365 Copilot",
         date: "September 1st",
-        icon: "🛠️",
+        icon: "🧩",
         status: "Released",
         description: "Enhanced value delivery through Copilot Studio integration with Microsoft 365",
         tldr: "Build custom AI agents with no-code Copilot Studio",
@@ -103,7 +103,7 @@ const initialFeatures = [
         id: 'seed-role-based-ai',
         title: "Role-based AI Solutions in M365 Copilot",
         date: "October 10th",
-        icon: "🧑‍💼",
+        icon: "🎯",
         status: "Released",
         description: "Specialized AI solutions tailored for different organizational roles and workflows",
         tldr: "Customized AI solutions for specific job roles",
@@ -141,11 +141,21 @@ const transformRecordToFeature = (record) => {
         }
     };
 
+    const sanitizeIcon = (value) => {
+        if (typeof value !== 'string') return '🤖';
+        const trimmed = value.trim();
+        if (!trimmed) return '🤖';
+        if (/^\?+$/.test(trimmed)) return '🤖';
+        return trimmed;
+    };
+
+    const icon = sanitizeIcon(record.icon);
+
     return {
         id: record.id,
         title: record.title,
         date: record.date,
-        icon: record.icon,
+        icon,
         status: record.status,
         description: record.description,
         tldr: record.tldr || '',

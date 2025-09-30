@@ -4,9 +4,7 @@
 
 This project is a React-based web application that tracks and displays the evolution of Microsoft Copilot features across different platforms and applications. The application provides an interactive interface for exploring Copilot features with filtering, searching, and user engagement capabilities including upvoting and starring features.
 
-## Live Application
-
-**Production URL**: https://yellow-desert-05314121e.1.azurestaticapps.net
+**Live Application**: https://yellow-desert-05314121e.1.azurestaticapps.net
 
 ## Architecture
 
@@ -40,7 +38,7 @@ This project is a React-based web application that tracks and displays the evolu
 
 #### 3. User Engagement Features
 - **Upvoting System**: Users can upvote features they find interesting
-- **Star Rating**: Users can star their favorite features
+- **Star Rating**: 1-5 star rating system with aggregated totals
 - **Comment Counter**: Displays engagement metrics
 - **Real-time Updates**: Vote counts update immediately
 
@@ -75,6 +73,8 @@ CREATE TABLE features (
     upvotes INT NOT NULL DEFAULT 0,
     comments INT NOT NULL DEFAULT 0,
     rating FLOAT NULL,
+    rating_total FLOAT NOT NULL DEFAULT 0,
+    rating_count INT NOT NULL DEFAULT 0,
     is_starred BIT NOT NULL DEFAULT 0,
     created_at DATETIME2 DEFAULT GETDATE(),
     updated_at DATETIME2 DEFAULT GETDATE()
@@ -87,7 +87,7 @@ CREATE TABLE features (
 - `PUT /api/features/{id}` - Update feature
 - `DELETE /api/features/{id}` - Delete feature
 - `PUT /api/features/{id}/upvote` - Upvote feature
-- `PUT /api/features/{id}/star` - Toggle star status
+- `PUT /api/features/{id}/rating` - Rate feature (1-5 stars)
 
 ### Data Seeding
 The application automatically seeds the database with 6 hardcoded Microsoft Copilot features:
@@ -121,7 +121,7 @@ The application automatically seeds the database with 6 hardcoded Microsoft Copi
 
 ### Phase 4: User Engagement Features
 - Implemented upvoting system
-- Added star rating functionality
+- Added 1-5 star rating functionality
 - Built real-time vote count updates
 - Integrated admin editing capabilities
 
@@ -158,6 +158,45 @@ The application automatically seeds the database with 6 hardcoded Microsoft Copi
 ### 5. Real-time Updates
 **Problem**: Vote counts not updating immediately after user interactions
 **Solution**: Optimistic updates with proper error handling and rollback
+
+## Getting Started - Local Development
+
+### Prerequisites
+- Node.js 18+ installed
+- Azure Functions Core Tools v4
+- Git
+
+### Quick Setup for Local Development
+
+1. **Clone the Repository**
+```bash
+git clone https://github.com/YOUR_USERNAME/copilot-app.git
+cd copilot-app
+```
+
+2. **Install Dependencies**
+```bash
+npm install
+```
+
+3. **Start the Development Server**
+```bash
+# Terminal 1 - Start the frontend
+npm run dev
+
+# Terminal 2 - Start the Azure Functions API
+cd api
+func start --port 7071
+```
+
+4. **Access the Application**
+- Frontend: http://localhost:5173
+- API: http://localhost:7071
+
+### Local Development Notes
+- The application will run with hardcoded sample data when no database is configured
+- Features include upvoting, star ratings, and admin editing capabilities
+- All changes are automatically reflected in the browser during development
 
 ## Azure Deployment Setup Guide
 
@@ -202,15 +241,6 @@ az sql server firewall-rule create \
   --name AllowAzureServices \
   --start-ip-address 0.0.0.0 \
   --end-ip-address 0.0.0.0
-
-# Allow your IP (replace with your public IP)
-az sql server firewall-rule create \
-  --resource-group copilot-evolution-rg \
-  --server copilot-features-sql \
-  --name AllowMyIP \
-  --start-ip-address YOUR.PUBLIC.IP.ADDRESS \
-  --end-ip-address YOUR.PUBLIC.IP.ADDRESS
-```
 
 ### Step 2: Fork and Configure Repository
 
@@ -351,6 +381,70 @@ copilot-app/
 7. **Export Functionality**: Allow users to export filtered data
 8. **Advanced Admin Panel**: Build comprehensive admin dashboard
 
+## Feedback
+
+### Time Breakdown
+*Rough estimate of the time spent on each major phase of the project*
+
+**Phase 1 - Planning & Setup:**
+- Initial planning with GPT-5: 0.5 hours
+- Project setup and environment configuration: 0.5 hours
+
+**Phase 2 - Design & Figma:**
+- Figma design creation and iteration: 5 hours
+
+**Phase 3 - Development:**
+- Full-stack implementation (React, Azure Functions, SQL, features, testing, debugging): 15 hours
+
+**Phase 4 - Azure Resource Creation:**
+- Setting up SQL Server, database, and Static Web App resources: 3 hours
+
+**Phase 5 - Azure Deployment:**
+- Application deployment, CI/CD setup, and troubleshooting: 3 hours
+
+**Estimated Total Project Time: 27 hours**
+
+### Vibe Coding Experience
+
+**What worked well:**
+- **Accelerated Development Timeline**: Vibe Coding enabled the creation of a full-stack application in just a few days, dramatically reducing what would have been weeks or months of traditional development time
+- **Lower Technical Barriers**: The AI assistance allowed for productive development without requiring expert-level knowledge in every technology used (React, Azure Functions, SQL Server, etc.) - basic familiarity was sufficient
+- **End-to-End Implementation**: From initial concept to production deployment, the AI could handle the full development lifecycle including architecture decisions, code implementation, and deployment configuration
+
+**Pain points encountered:**
+- **Figma Integration Challenges**: Creating and translating Figma designs was extremely time-consuming and difficult. Required extensive back-and-forth with multiple AI assistants (first Codex, then Claude) before achieving workable results, though the final application code generation from the Figma designs and product backlog was excellent
+- **Resource Management Issues**: Azure CLI resource creation was convenient, but the AI never properly cleaned up after itself, leaving unused resources scattered across the environment that required manual cleanup
+- **Lack of Strategic Planning**: The AI would often jump between random solutions without stopping to create a solid plan, figure out execution steps, and commit to that approach. This led to inefficient trial-and-error cycles
+- **Research Dependency**: Frequently had to research issues independently and provide specific articles or documentation to the AI before it could solve problems. Even then, it was inconsistent whether the AI would properly follow the provided guidance on first attempt
+- **Deployment Iteration Problems**: Azure deployment issues were particularly frustrating, with the AI spamming multiple "solutions" rapidly instead of methodically working through one approach at a time
+- **Debugging Inconsistency**: Post-deployment debugging was unpredictable - sometimes the AI could quickly resolve console errors and bugs, other times it would require significant human intervention to get back on track
+
+**Overall assessment:**
+- **Mostly Positive Experience**: Despite the challenges encountered, this project demonstrates the current potential and limitations of Vibe Coding as a development approach. The ability to rapidly prototype and deploy a full-stack application is genuinely impressive
+- **Not Ready for Pure Vibe Coding**: Would not recommend a purely AI-driven development approach at this stage. The pain points and inconsistencies show that human oversight and intervention are still critical for efficient project completion
+- **Best as Enhancement Tool**: The optimal approach is using AI as a powerful development enhancement tool rather than a replacement for traditional coding skills. AI excels at accelerating development when guided by someone with foundational understanding of the technologies involved
+- **Future Potential**: While not quite ready for hands-off development, the technology shows clear promise for becoming more reliable and strategic in future iterations
+
+### General Project Notes
+
+**Project Goal:**
+- The primary objective was to make this project as "vibe coded" as possible, meaning minimal human interaction and maximum AI autonomy in the development process
+
+**Technical notes:**
+- **Pre-planning with GPT-5**: Created a comprehensive project plan by providing full context (PowerPoint slide, examples, requirements) to GPT-5 upfront. This strategic planning session proved invaluable for guiding AI decisions throughout the project
+- **AI Model Limitations**: Token limits in Claude forced occasional use of Codex, particularly for final feature additions post-deployment. Ideally would have maintained single AI consistency
+- **Autonomous Deployment Success**: Successfully achieved hands-off Azure CLI resource deployment and Figma-to-code translation with minimal intervention
+
+**Process observations:**
+- **Human Guidance Still Essential**: While aiming for pure vibe coding, strategic nudges were necessary to redirect AI when it chose suboptimal approaches
+- **Planning Pays Off**: Having a detailed upfront plan from GPT-5 significantly improved the effectiveness of subsequent AI interactions
+- **Multi-AI Workflow**: Despite preference for single AI, using different models for different strengths (planning vs. implementation vs. final features) proved practical
+
+**Future considerations:**
+- **AI as Acceleration Tool**: Current AI models are best positioned as development accelerators rather than replacements, likely reducing developer task time while maintaining necessary oversight
+- **Not Ready for Pure Autonomy**: These AI models are not yet ready for completely unsupervised development, but show strong potential for guided rapid prototyping
+- **Strategic Human Input**: The most effective approach combines AI efficiency with strategic human direction at key decision points
+
 ## Contributing
 
 1. Fork the repository
@@ -358,11 +452,3 @@ copilot-app/
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License. See the LICENSE file for details.
-
-## Contact
-
-For questions or support, please open an issue in the GitHub repository.
