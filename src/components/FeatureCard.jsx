@@ -2,21 +2,20 @@
 import { useFeatures } from '../context/FeaturesContext'
 
 const FeatureCard = ({ feature, className = '' }) => {
-  const { setSelectedFeature, toggleStarFeature, upvoteFeature } = useFeatures()
+  const { setSelectedFeature, upvoteFeature } = useFeatures()
 
   const handleClick = () => {
     setSelectedFeature(feature)
-  }
-
-  const handleStarClick = (event) => {
-    event.stopPropagation()
-    toggleStarFeature(feature.id, !feature.isStarred)
   }
 
   const handleUpvote = (event) => {
     event.stopPropagation()
     upvoteFeature(feature.id)
   }
+
+  const averageRating = Number.isFinite(feature.rating) ? feature.rating : Number(feature.rating || 0)
+  const ratingCount = Number.isFinite(feature.ratingCount) ? feature.ratingCount : Number(feature.ratingCount || 0)
+  const formattedRating = averageRating > 0 ? averageRating.toFixed(1) : '0.0'
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -57,17 +56,10 @@ const FeatureCard = ({ feature, className = '' }) => {
           `}>
             {feature.status}
           </span>
-          <button
-            type="button"
-            onClick={handleStarClick}
-            className={`p-1.5 rounded-full border transition-colors duration-200 ${feature.isStarred ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-400' : 'border-primary-backgroundSecondary text-text-secondary hover:border-text-accent/40 hover:text-text-accent'}`}
-            aria-label={feature.isStarred ? 'Unstar feature' : 'Star feature'}
-          >
-            <Star
-              className="w-4 h-4"
-              fill={feature.isStarred ? '#fbbf24' : 'none'}
-            />
-          </button>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary-surfaceElevated border border-primary-backgroundSecondary text-yellow-400">
+            <Star className="w-4 h-4 fill-current" />
+            <span className="text-xs font-semibold text-text-primary">{formattedRating}</span>
+          </div>
         </div>
       </div>
 
@@ -109,7 +101,7 @@ const FeatureCard = ({ feature, className = '' }) => {
           <span>{feature.upvotes || 0}</span>
         </button>
         <span>{feature.comments || 0} comments</span>
-        <span>Rating {feature.rating || 0}</span>
+        <span>Rating {formattedRating} ({ratingCount || 0})</span>
       </div>
 
       <div className="mt-4 text-text-accent text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200">

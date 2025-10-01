@@ -17,7 +17,7 @@ const initialFeatures = [
     id: uuidv4(),
     title: 'GPT-5',
     date: 'August 7th',
-    icon: '🧠',
+    icon: '🤖',
     status: 'General availability',
     description: 'Advanced language model capabilities with enhanced reasoning and improved safety features',
     tldr: 'Next-gen AI model with enhanced reasoning and safety',
@@ -26,6 +26,8 @@ const initialFeatures = [
     upvotes: 856,
     comments: 142,
     rating: 4.8,
+    ratingCount: 200,
+    ratingTotal: 960,
     image: null,
     links: [],
     isStarred: false
@@ -43,6 +45,8 @@ const initialFeatures = [
     upvotes: 324,
     comments: 45,
     rating: 4.6,
+    ratingCount: 120,
+    ratingTotal: 552,
     image: null,
     links: [],
     isStarred: false
@@ -51,7 +55,7 @@ const initialFeatures = [
     id: uuidv4(),
     title: 'Copilot Studio Value in M365 Copilot',
     date: 'September 1st',
-    icon: '🛠️',
+    icon: '🧩',
     status: 'Released',
     description: 'Enhanced value delivery through Copilot Studio integration with Microsoft 365',
     tldr: 'Build custom AI agents with no-code Copilot Studio',
@@ -60,6 +64,8 @@ const initialFeatures = [
     upvotes: 267,
     comments: 38,
     rating: 4.4,
+    ratingCount: 95,
+    ratingTotal: 418,
     image: null,
     links: [],
     isStarred: false
@@ -77,6 +83,8 @@ const initialFeatures = [
     upvotes: 247,
     comments: 23,
     rating: 4.7,
+    ratingCount: 150,
+    ratingTotal: 705,
     image: null,
     links: [],
     isStarred: false
@@ -94,6 +102,8 @@ const initialFeatures = [
     upvotes: 189,
     comments: 31,
     rating: 4.3,
+    ratingCount: 90,
+    ratingTotal: 387,
     image: null,
     links: [],
     isStarred: false
@@ -102,7 +112,7 @@ const initialFeatures = [
     id: uuidv4(),
     title: 'Role-based AI Solutions in M365 Copilot',
     date: 'October 10th',
-    icon: '🧑‍💼',
+    icon: '🎯',
     status: 'Released',
     description: 'Specialized AI solutions tailored for different organizational roles and workflows',
     tldr: 'Customized AI solutions for specific job roles',
@@ -111,11 +121,14 @@ const initialFeatures = [
     upvotes: 134,
     comments: 19,
     rating: 4.5,
+    ratingCount: 110,
+    ratingTotal: 495,
     image: null,
     links: [],
     isStarred: false
   }
 ]
+
 
 
 
@@ -136,15 +149,71 @@ const parseJsonArray = (value, fallback = []) => {
   return fallback
 }
 
-const normalizeFeature = (feature) => ({
-  ...feature,
-  tags: parseJsonArray(feature.tags),
-  links: parseJsonArray(feature.links),
-  upvotes: Number.isFinite(feature.upvotes) ? feature.upvotes : Number(feature.upvotes || 0),
-  comments: Number.isFinite(feature.comments) ? feature.comments : Number(feature.comments || 0),
-  rating: Number.isFinite(feature.rating) ? feature.rating : Number(feature.rating || 0),
-  isStarred: Boolean(feature.isStarred ?? feature.is_starred)
-})
+const clampRating = (value) => {
+  if (!Number.isFinite(value)) return 0
+  if (value < 0) return 0
+  if (value > 5) return 5
+  return value
+}
+
+const normalizeFeature = (feature) => {
+  if (!feature) return null
+
+  const parsedTags = parseJsonArray(feature.tags)
+  const parsedLinks = parseJsonArray(feature.links)
+
+  const sanitizedIcon = (() => {
+    if (typeof feature.icon !== 'string') return '🤖'
+    const trimmed = feature.icon.trim()
+    if (!trimmed) return '🤖'
+    if (/^\?+$/.test(trimmed)) return '🤖'
+    return trimmed
+  })()
+
+  const rawRatingCount = feature.ratingCount ?? feature.rating_count
+  const rawRatingTotal = feature.ratingTotal ?? feature.rating_total
+  let ratingCount = Number.isFinite(rawRatingCount) ? rawRatingCount : Number(rawRatingCount || 0)
+  let ratingTotal = Number.isFinite(rawRatingTotal) ? rawRatingTotal : Number(rawRatingTotal || 0)
+
+  let ratingValue = Number.isFinite(feature.rating) ? feature.rating : Number(feature.rating || 0)
+  ratingValue = clampRating(ratingValue)
+
+  if (!Number.isFinite(ratingCount) || ratingCount < 0) {
+    ratingCount = 0
+  }
+  if (!Number.isFinite(ratingTotal)) {
+    ratingTotal = 0
+  }
+
+  if (ratingCount > 0) {
+    if (ratingTotal <= 0) {
+      ratingTotal = ratingValue * ratingCount
+    } else {
+      ratingValue = ratingTotal / ratingCount
+    }
+  } else if (ratingValue > 0) {
+    ratingCount = 1
+    if (ratingTotal <= 0) {
+      ratingTotal = ratingValue
+    }
+  }
+
+  ratingValue = clampRating(ratingValue)
+  ratingTotal = Math.max(0, ratingTotal)
+
+  return {
+    ...feature,
+    icon: sanitizedIcon,
+    tags: parsedTags,
+    links: parsedLinks,
+    upvotes: Number.isFinite(feature.upvotes) ? feature.upvotes : Number(feature.upvotes || 0),
+    comments: Number.isFinite(feature.comments) ? feature.comments : Number(feature.comments || 0),
+    rating: ratingValue,
+    ratingCount,
+    ratingTotal,
+    isStarred: Boolean(feature.isStarred ?? feature.is_starred)
+  }
+}
 
 export const FeaturesProvider = ({ children }) => {
   const [features, setFeatures] = useState([])
@@ -154,6 +223,41 @@ export const FeaturesProvider = ({ children }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategories, setSelectedCategories] = useState([])
   const [selectedTags, setSelectedTags] = useState([])
+
+  const getStoredUserRating = (featureId) => {
+    if (typeof window === 'undefined') return 0
+    try {
+      const raw = window.localStorage.getItem(`feature-rating-${featureId}`)
+      const parsed = Number(raw)
+      return Number.isFinite(parsed) ? parsed : 0
+    } catch (error) {
+      console.warn('Failed to read stored rating', error)
+      return 0
+    }
+  }
+
+  const persistUserRating = (featureId, ratingValue) => {
+    if (typeof window === 'undefined') return
+    try {
+      if (!Number.isFinite(ratingValue) || ratingValue <= 0) {
+        window.localStorage.removeItem(`feature-rating-${featureId}`)
+      } else {
+        window.localStorage.setItem(`feature-rating-${featureId}`, String(ratingValue))
+      }
+    } catch (error) {
+      console.warn('Failed to persist rating', error)
+    }
+  }
+
+  const attachUserRating = (feature, previousFeature = null) => {
+    if (!feature) return feature
+    const fallback = previousFeature?.userRating ?? 0
+    const stored = getStoredUserRating(feature.id)
+    const userRating = fallback || stored
+    return userRating
+      ? { ...feature, userRating }
+      : { ...feature, userRating: 0 }
+  }
 
   // Load features from database on app start
   useEffect(() => {
@@ -341,16 +445,16 @@ export const FeaturesProvider = ({ children }) => {
       if (response.ok) {
         const dbFeatures = await response.json()
         console.log('Database features loaded:', dbFeatures.length, 'features')
-        setFeatures(dbFeatures.map(normalizeFeature))
+        setFeatures(dbFeatures.map(normalizeFeature).map(feature => attachUserRating(feature)))
       } else {
         console.error('Failed to load features from database:', response.status)
         // Fallback to hardcoded features if database fails
-        setFeatures(initialFeatures.map(normalizeFeature))
+        setFeatures(initialFeatures.map(normalizeFeature).map(feature => attachUserRating(feature)))
       }
     } catch (error) {
       console.error('Error loading features from database:', error)
       // Fallback to hardcoded features if database fails
-      setFeatures(initialFeatures.map(normalizeFeature))
+      setFeatures(initialFeatures.map(normalizeFeature).map(feature => attachUserRating(feature)))
     } finally {
       setLoading(false)
     }
@@ -371,7 +475,7 @@ export const FeaturesProvider = ({ children }) => {
       if (response.ok) {
         const feature = await response.json()
         console.log('Successfully added feature to database:', feature)
-        setFeatures(prev => [normalizeFeature(feature), ...prev])
+        setFeatures(prev => [attachUserRating(normalizeFeature(feature)), ...prev])
         return feature
       } else {
         const errorText = await response.text()
@@ -404,8 +508,10 @@ export const FeaturesProvider = ({ children }) => {
       if (response.ok) {
         const updatedFeature = await response.json()
         const normalizedFeature = normalizeFeature(updatedFeature)
-        setFeatures(prev => prev.map(f => (f.id === id ? normalizedFeature : f)))
-        return normalizedFeature
+        const previousFeature = features.find(feature => feature.id === id) || null
+        const featureWithRating = attachUserRating({ ...normalizedFeature }, previousFeature)
+        setFeatures(prev => prev.map(f => (f.id === id ? featureWithRating : f)))
+        return featureWithRating
       } else {
         const errorText = await response.text()
         console.error('Failed to update feature in database:', response.status, errorText)
@@ -428,6 +534,7 @@ export const FeaturesProvider = ({ children }) => {
 
       if (response.ok) {
         setFeatures(prev => prev.filter(f => f.id !== id))
+        persistUserRating(id, 0)
         if (selectedFeature?.id === id) {
           setSelectedFeature(null)
         }
@@ -445,20 +552,26 @@ export const FeaturesProvider = ({ children }) => {
   }
 
   const upvoteFeature = async (id) => {
-    setFeatures(prev => prev.map(f =>
-      f.id === id ? { ...f, upvotes: (f.upvotes || 0) + 1 } : f
-    ))
+    let snapshot = null
+
+    setFeatures(prev => prev.map(f => {
+      if (f.id !== id) return f
+      snapshot = { ...f }
+      return { ...f, upvotes: (f.upvotes || 0) + 1 }
+    }))
 
     try {
       const response = await fetch(`/api/features/${id}/upvote`, {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' }
       })
 
       if (response.ok) {
         const updatedFeature = normalizeFeature(await response.json())
         setFeatures(prev => prev.map(f =>
-          f.id === id ? updatedFeature : f
+          f.id === id
+            ? attachUserRating({ ...updatedFeature }, f)
+            : f
         ))
       } else {
         throw new Error('Failed to upvote feature')
@@ -466,35 +579,74 @@ export const FeaturesProvider = ({ children }) => {
     } catch (error) {
       console.error('Error upvoting feature:', error)
       setFeatures(prev => prev.map(f =>
-        f.id === id ? { ...f, upvotes: Math.max((f.upvotes || 1) - 1, 0) } : f
+        f.id === id
+          ? snapshot ? { ...snapshot } : f
+          : f
       ))
     }
   }
 
-  const toggleStarFeature = async (id, nextState) => {
-    setFeatures(prev => prev.map(f =>
-      f.id === id ? { ...f, isStarred: nextState } : f
-    ))
+  const rateFeature = async (id, ratingValue) => {
+    const normalizedRating = clampRating(Number(ratingValue))
+    if (normalizedRating < 1 || normalizedRating > 5) {
+      console.warn('Ignoring rating outside 1-5 range', ratingValue)
+      return
+    }
+
+    const previousStoredRating = getStoredUserRating(id)
+    let snapshot = null
+
+    setFeatures(prev => prev.map(f => {
+      if (f.id !== id) return f
+
+      snapshot = { ...f }
+      const baseCount = Number.isFinite(f.ratingCount) && f.ratingCount > 0 ? f.ratingCount : 0
+      const baseTotal = Number.isFinite(f.ratingTotal) && f.ratingTotal > 0
+        ? f.ratingTotal
+        : (Number.isFinite(f.rating) ? f.rating * baseCount : 0)
+
+      const adjustedTotal = previousStoredRating > 0
+        ? Math.max(0, baseTotal - previousStoredRating + normalizedRating)
+        : baseTotal + normalizedRating
+      const adjustedCount = previousStoredRating > 0
+        ? Math.max(baseCount, 1)
+        : baseCount + 1
+      const adjustedAverage = adjustedCount > 0 ? adjustedTotal / adjustedCount : normalizedRating
+
+      return {
+        ...f,
+        rating: clampRating(adjustedAverage),
+        ratingCount: adjustedCount,
+        ratingTotal: adjustedTotal,
+        userRating: normalizedRating
+      }
+    }))
 
     try {
-      const response = await fetch(`/api/features/${id}/star`, {
-        method: 'POST',
+      const response = await fetch(`/api/features/${id}/rating`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isStarred: nextState })
+        body: JSON.stringify({ rating: normalizedRating, previousRating: previousStoredRating })
       })
 
       if (response.ok) {
         const updatedFeature = normalizeFeature(await response.json())
+        persistUserRating(id, normalizedRating)
         setFeatures(prev => prev.map(f =>
-          f.id === id ? updatedFeature : f
+          f.id === id
+            ? attachUserRating({ ...updatedFeature }, { ...snapshot, userRating: normalizedRating })
+            : f
         ))
       } else {
-        throw new Error('Failed to update star state')
+        throw new Error('Failed to submit rating')
       }
     } catch (error) {
-      console.error('Error toggling star state:', error)
+      console.error('Error rating feature:', error)
+      persistUserRating(id, previousStoredRating)
       setFeatures(prev => prev.map(f =>
-        f.id === id ? { ...f, isStarred: !nextState } : f
+        f.id === id
+          ? snapshot ? { ...snapshot } : f
+          : f
       ))
     }
   }
@@ -519,7 +671,7 @@ export const FeaturesProvider = ({ children }) => {
     updateFeature,
     deleteFeature,
     upvoteFeature,
-    toggleStarFeature,
+    rateFeature,
     refreshFeatures: loadFeaturesFromDatabase,
     getFilteredAndSortedFeatures,
     getAvailableMonths,
