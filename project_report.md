@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is a React-based web application that tracks and displays the evolution of Microsoft Copilot features across different platforms and applications. The application provides an interactive interface for exploring Copilot features with filtering, searching, and user engagement capabilities including upvoting and starring features..
+This project is a React-based web application that tracks and displays the evolution of Microsoft Copilot features across different platforms and applications. The application provides an interactive interface for exploring Copilot features with filtering, searching, and user engagement capabilities including upvoting and starring features...
 
 **Live Application**: https://yellow-desert-05314121e.1.azurestaticapps.net
 
