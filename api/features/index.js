@@ -2,7 +2,7 @@ const sql = require('mssql');
 
 // Database configuration
 const config = {
-    server: 'copilot-features-sql.database.windows.net',
+    server: 'copilot-features-sql-1759184743.database.windows.net',
     database: 'copilot-features',
     user: 'copilotadmin',
     password: 'CopilotApp2024!',
